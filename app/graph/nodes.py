@@ -78,7 +78,7 @@ def _fmt_duration(minutes: int) -> str:
     return f"{h}h{m:02d}m"
 
 
-def _rule_based_reasons(rec: Recommendation, all_recs: list[Recommendation]) -> tuple[list[str], list[str]]:
+def _rule_based_reasons(rec: Recommendation, all_recs: list[Recommendation], query: TripQuery) -> tuple[list[str], list[str]]:
     offer = rec.scored.offer
     prices = [r.scored.offer.effective_price for r in all_recs]
     durations = [r.scored.offer.total_duration_minutes for r in all_recs]
@@ -117,6 +117,26 @@ def _rule_based_reasons(rec: Recommendation, all_recs: list[Recommendation]) -> 
     if any(s.often_delayed for s in offer.segments):
         cons.append("One leg is often delayed 30+ min")
 
+    if offer.student_discount_amount:
+        pct = f" ({offer.student_discount_percent:.0f}% off)" if offer.student_discount_percent else ""
+        cond = ", conditions apply" if offer.student_discount_conditional else ""
+        pros.append(
+            f"Student discount ~{offer.currency} {offer.student_discount_amount:.0f}{pct}{cond}"
+        )
+    if offer.site_discount_amount:
+        source = offer.site_discount_source or "online booking"
+        pros.append(f"{source} exclusive discount ~{offer.currency} {offer.site_discount_amount:.0f}")
+    if offer.student_baggage_bonus_kg:
+        total = offer.total_cabin_baggage_kg
+        extra = f" ({total:.0f}kg total)" if total else ""
+        pros.append(f"+{offer.student_baggage_bonus_kg:.0f}kg student baggage{extra}")
+    elif offer.baggage_allowance_kg:
+        pros.append(f"Includes {offer.baggage_allowance_kg:.0f}kg cabin baggage")
+
+    max_lay = query.max_layover_minutes
+    if max_lay is not None and any(l.duration_minutes > max_lay for l in offer.layovers):
+        cons.append(f"Layover exceeds your {max_lay}m limit")
+
     if offer.carbon_emissions_g is not None:
         carbons = [r.scored.offer.carbon_emissions_g or 0 for r in all_recs]
         if offer.carbon_emissions_g == min(c for c in carbons if c):
@@ -137,7 +157,7 @@ def explain_node(state: GraphState) -> GraphState:
 
     recs = state.get("recommendations", [])
     for rec in recs:
-        pros, cons = _rule_based_reasons(rec, recs)
+        pros, cons = _rule_based_reasons(rec, recs, state["query"])
         rec.pros = pros
         rec.cons = cons
         offer = rec.scored.offer

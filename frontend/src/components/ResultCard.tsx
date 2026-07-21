@@ -31,7 +31,12 @@ export default function ResultCard({ rec }: { rec: Recommendation }) {
   const stops = offer.layovers.length;
   const price = offer.true_price ?? offer.price;
   const hasFees = offer.true_price != null && offer.true_price > offer.price;
+  const hasSavings = offer.true_price != null && offer.true_price < offer.price;
   const airlines = Array.from(new Set(offer.segments.map((s) => s.airline)));
+  const hasBaggage =
+    offer.baggage_allowance_kg != null || offer.student_baggage_bonus_kg != null;
+  const totalBagKg =
+    (offer.baggage_allowance_kg ?? 0) + (offer.student_baggage_bonus_kg ?? 0);
 
   return (
     <article className="flex flex-col gap-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
@@ -67,13 +72,20 @@ export default function ResultCard({ rec }: { rec: Recommendation }) {
           <div className="text-lg font-bold text-slate-900">
             {formatMoney(price, offer.currency)}
           </div>
-          {hasFees && (
+          {(hasFees || hasSavings) && (
             <div className="text-xs text-slate-400 line-through">
               {formatMoney(offer.price, offer.currency)}
             </div>
           )}
           {hasFees && (
             <div className="text-[11px] font-medium text-emerald-600">incl. bag fees</div>
+          )}
+          {hasSavings && (
+            <div className="text-[11px] font-medium text-emerald-600">
+              {offer.student_discount_percent
+                ? `student −${Math.round(offer.student_discount_percent)}%`
+                : "after discounts"}
+            </div>
           )}
         </div>
       </header>
@@ -104,6 +116,15 @@ export default function ResultCard({ rec }: { rec: Recommendation }) {
       {rec.narrative && (
         <p className="rounded-lg bg-slate-50 px-3 py-2 text-sm italic text-slate-600">
           {rec.narrative}
+        </p>
+      )}
+
+      {hasBaggage && (
+        <p className="text-xs text-slate-500">
+          Cabin baggage: <span className="font-medium text-slate-700">{totalBagKg}kg</span>
+          {offer.student_baggage_bonus_kg
+            ? ` (incl. +${offer.student_baggage_bonus_kg}kg student bonus)`
+            : ""}
         </p>
       )}
 

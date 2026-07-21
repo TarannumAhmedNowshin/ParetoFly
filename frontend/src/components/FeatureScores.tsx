@@ -10,6 +10,7 @@ const FEATURE_ORDER: FeatureName[] = [
   "reliability",
   "aircraft_match",
   "carbon",
+  "luggage_fit",
 ];
 
 /**

@@ -24,8 +24,9 @@ _SYSTEM = (
     "constraints and three pre-scored flight options, write concise, honest "
     "pros/cons grounded ONLY in the provided facts. 2-4 pros and 0-3 cons each, "
     "as short phrases. Then a one-sentence narrative. Reference the traveler's "
-    "specific needs (kids, bags, arrival time, red-eyes) when relevant. Do not "
-    "invent prices, times, or amenities that are not given."
+    "specific needs (kids, bags, arrival time, red-eyes, student status) and call "
+    "out any student/booking-site discounts or cabin baggage allowance when given. "
+    "Do not invent prices, times, or amenities that are not given."
 )
 
 
@@ -52,6 +53,13 @@ def _offer_facts(rec: Recommendation) -> dict:
         "aircraft": [s.aircraft for s in o.segments],
         "often_delayed": any(s.often_delayed for s in o.segments),
         "carbon_g": o.carbon_emissions_g,
+        "student_discount": o.student_discount_amount,
+        "student_discount_percent": o.student_discount_percent,
+        "site_discount": o.site_discount_amount,
+        "site_discount_source": o.site_discount_source,
+        "cabin_baggage_kg": o.baggage_allowance_kg,
+        "student_baggage_bonus_kg": o.student_baggage_bonus_kg,
+        "total_cabin_baggage_kg": o.total_cabin_baggage_kg,
     }
 
 
@@ -62,7 +70,10 @@ def _traveler_context(query: TripQuery) -> dict:
         "cabin": query.cabin.value,
         "budget": query.budget,
         "checked_bags": sig.checked_bags,
+        "is_student": sig.is_student,
+        "max_cabin_baggage_kg": sig.max_cabin_baggage_kg,
         "avoid_red_eye": sig.avoid_red_eye,
+        "max_layover_minutes": query.max_layover_minutes,
         "preferred_arrival_window": [sig.preferred_arrival_start_hour, sig.preferred_arrival_end_hour],
         "travel_with_child": sig.travel_with_child,
         "motion_sickness": sig.motion_sickness,

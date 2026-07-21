@@ -4,7 +4,7 @@ import { useCallback, useRef, useState } from "react";
 import SearchForm from "@/components/SearchForm";
 import ProgressTimeline from "@/components/ProgressTimeline";
 import ResultCard from "@/components/ResultCard";
-import { searchStream } from "@/lib/api";
+import { searchStream, reportUrl } from "@/lib/api";
 import type { SearchResult, TripQuery } from "@/types/api";
 
 type Phase = "idle" | "streaming" | "done" | "error";
@@ -77,7 +77,18 @@ export default function Home() {
 
       {recommendations.length > 0 && (
         <section className="flex flex-col gap-4">
-          <h2 className="text-lg font-semibold text-slate-900">Your top 3</h2>
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg font-semibold text-slate-900">Your top 3</h2>
+            {result?.session_id && (
+              <a
+                href={reportUrl(result.session_id)}
+                download
+                className="rounded-lg border border-indigo-200 bg-indigo-50 px-3 py-1.5 text-sm font-medium text-indigo-700 transition hover:bg-indigo-100"
+              >
+                Download report
+              </a>
+            )}
+          </div>
           {recommendations.map((rec) => (
             <ResultCard key={rec.scored.offer.id} rec={rec} />
           ))}

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import app.graph.nodes as nodes
+import app.reporting as reporting
 from app.models.schemas import ParsedSignals
 from fastapi.testclient import TestClient
 from tests.conftest import make_offers
@@ -51,3 +52,36 @@ def test_search_stream_emits_progress_and_result(monkeypatch):
     assert "event: progress" in text
     assert "event: result" in text
     assert "search" in text
+
+
+def test_search_generates_downloadable_report(monkeypatch, tmp_path):
+    _stub_network(monkeypatch)
+    monkeypatch.setattr(reporting, "reports_dir", lambda: tmp_path)
+    from app.api.main import app
+
+    client = TestClient(app)
+    resp = client.post("/search", json=_payload())
+    body = resp.json()
+    session_id = body["session_id"]
+    assert session_id and reporting.is_valid_session_id(session_id)
+    assert (tmp_path / f"{session_id}_report.md").exists()
+
+    dl = client.get(f"/report/{session_id}")
+    assert dl.status_code == 200
+    assert "ParetoFly flight report" in dl.text
+    assert "attachment" in dl.headers["content-disposition"]
+
+
+def test_report_invalid_session_id_rejected():
+    from app.api.main import app
+
+    client = TestClient(app)
+    assert client.get("/report/not-hex!").status_code == 400
+
+
+def test_report_missing_returns_404(monkeypatch, tmp_path):
+    monkeypatch.setattr(reporting, "reports_dir", lambda: tmp_path)
+    from app.api.main import app
+
+    client = TestClient(app)
+    assert client.get("/report/deadbeefdeadbeef").status_code == 404

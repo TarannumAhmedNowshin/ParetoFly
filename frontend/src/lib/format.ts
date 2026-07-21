@@ -52,4 +52,5 @@ export const FEATURE_LABELS: Record<FeatureName, string> = {
   reliability: "Reliability",
   aircraft_match: "Aircraft",
   carbon: "Carbon",
+  luggage_fit: "Baggage",
 };

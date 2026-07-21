@@ -18,12 +18,15 @@ from app.models.schemas import FlightOffer, ScoredFlight, TripQuery, Weights, Ca
 
 # Persona weight presets (used as defaults when a persona is detected).
 PERSONA_WEIGHTS: dict[str, Weights] = {
-    "student": Weights(price=0.45, duration=0.10, stops=0.08, layover_quality=0.07,
-                       arrival_fit=0.10, reliability=0.10, aircraft_match=0.05, carbon=0.05),
-    "business": Weights(price=0.15, duration=0.20, stops=0.15, layover_quality=0.10,
-                        arrival_fit=0.20, reliability=0.15, aircraft_match=0.02, carbon=0.03),
-    "family": Weights(price=0.25, duration=0.20, stops=0.12, layover_quality=0.10,
-                      arrival_fit=0.18, reliability=0.08, aircraft_match=0.04, carbon=0.03),
+    "student": Weights(price=0.42, duration=0.09, stops=0.07, layover_quality=0.06,
+                       arrival_fit=0.09, reliability=0.09, aircraft_match=0.04, carbon=0.04,
+                       luggage_fit=0.10),
+    "business": Weights(price=0.13, duration=0.19, stops=0.14, layover_quality=0.09,
+                        arrival_fit=0.19, reliability=0.14, aircraft_match=0.02, carbon=0.03,
+                        luggage_fit=0.07),
+    "family": Weights(price=0.23, duration=0.18, stops=0.11, layover_quality=0.09,
+                      arrival_fit=0.17, reliability=0.07, aircraft_match=0.04, carbon=0.03,
+                      luggage_fit=0.08),
 }
 
 _STUDENT_BUDGET_THRESHOLD = 500.0
@@ -69,9 +72,12 @@ def _stops_score(offer: FlightOffer) -> float:
     return {0: 1.0, 1: 0.6, 2: 0.2}.get(offer.stops, 0.0)
 
 
-def _layover_score(offer: FlightOffer) -> float:
+def _layover_score(offer: FlightOffer, max_minutes: int | None = None) -> float:
     if not offer.layovers:
         return 1.0
+    # Hard cap: any layover beyond the traveler's stated limit zeroes the feature.
+    if max_minutes is not None and any(l.duration_minutes > max_minutes for l in offer.layovers):
+        return 0.0
     per: list[float] = []
     for lay in offer.layovers:
         if lay.overnight:
@@ -118,6 +124,48 @@ def _reliability_score(offer: FlightOffer) -> float:
         return 0.5
     delayed = sum(1 for s in offer.segments if s.often_delayed)
     return 1.0 - delayed / len(offer.segments)
+
+
+_CARRY_ON_BASELINE_KG = 7.0  # typical economy cabin-bag baseline
+
+
+def _fare_has_checked_bag(offer: FlightOffer) -> bool:
+    text = " ".join(offer.extensions).lower()
+    if "for a fee" in text:
+        return False
+    return "checked baggage" in text or "checked bag" in text or "bag included" in text
+
+
+def _luggage_fit_score(offer: FlightOffer, query: TripQuery) -> float:
+    """Reward fares whose baggage allowance meets the traveler's stated need.
+
+    Neutral (0.5) when the traveler expressed no baggage concern or when the
+    airline's allowance could not be determined during enrichment.
+    """
+
+    sig = query.signals
+    need_kg = sig.max_cabin_baggage_kg
+    has_checked = sig.checked_bags > 0
+    carry_focus = sig.carry_on_only or need_kg is not None
+    if not (has_checked or carry_focus):
+        return 0.5
+
+    parts: list[float] = []
+    if carry_focus:
+        allow_kg = offer.total_cabin_baggage_kg
+        if allow_kg is None:
+            parts.append(0.5)
+        else:
+            need = need_kg if need_kg is not None else _CARRY_ON_BASELINE_KG
+            if allow_kg >= need:
+                parts.append(1.0)
+            elif allow_kg >= 0.6 * need:
+                parts.append(0.5)
+            else:
+                parts.append(0.2)
+    if has_checked:
+        parts.append(1.0 if _fare_has_checked_bag(offer) else 0.4)
+    return sum(parts) / len(parts) if parts else 0.5
 
 
 def _aircraft_match_score(offer: FlightOffer, query: TripQuery) -> float:
@@ -171,11 +219,12 @@ def score_offers(offers: list[FlightOffer], query: TripQuery) -> list[ScoredFlig
             "price": price_norm[idx],
             "duration": duration_norm[idx],
             "stops": _stops_score(offer),
-            "layover_quality": _layover_score(offer),
+            "layover_quality": _layover_score(offer, query.max_layover_minutes),
             "arrival_fit": _arrival_fit_score(offer, query),
             "reliability": _reliability_score(offer),
             "aircraft_match": _aircraft_match_score(offer, query),
             "carbon": carbon_norm[idx],
+            "luggage_fit": _luggage_fit_score(offer, query),
         }
         weighted = {name: getattr(weights, name) * val for name, val in features.items()}
         total = sum(weighted.values())

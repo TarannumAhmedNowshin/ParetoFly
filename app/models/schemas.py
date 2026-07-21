@@ -36,14 +36,15 @@ class CabinClass(str, Enum):
 class Weights(BaseModel):
     """User-tunable trade-off weights. Persona defaults live in the scoring module."""
 
-    price: float = 0.30
-    duration: float = 0.15
+    price: float = 0.28
+    duration: float = 0.14
     stops: float = 0.10
-    layover_quality: float = 0.10
-    arrival_fit: float = 0.15
-    reliability: float = 0.10
-    aircraft_match: float = 0.05
-    carbon: float = 0.05
+    layover_quality: float = 0.09
+    arrival_fit: float = 0.14
+    reliability: float = 0.09
+    aircraft_match: float = 0.04
+    carbon: float = 0.04
+    luggage_fit: float = 0.08
 
 
 class ParsedSignals(BaseModel):
@@ -56,6 +57,8 @@ class ParsedSignals(BaseModel):
     travel_with_infant: bool = False
     mobility_needs: bool = False
     motion_sickness: bool = False
+    is_student: bool = False
+    max_cabin_baggage_kg: Optional[float] = None  # traveler's stated cabin-bag need
     preferred_arrival_start_hour: Optional[int] = None  # local hour 0-23
     preferred_arrival_end_hour: Optional[int] = None
     preferred_aircraft: list[str] = Field(default_factory=list)
@@ -82,6 +85,7 @@ class TripQuery(BaseModel):
     max_layover_minutes: Optional[int] = Field(default=None, gt=0)
     preferred_airlines: list[str] = Field(default_factory=list)
     excluded_airlines: list[str] = Field(default_factory=list)
+    is_student: bool = False
     currency: str = "USD"
 
     # Free-text box + parsed result
@@ -151,6 +155,16 @@ class FlightOffer(BaseModel):
 
     # Populated during enrichment / normalization
     true_price: Optional[float] = None
+    student_discount_amount: Optional[float] = None
+    student_discount_percent: Optional[float] = None
+    student_discount_conditional: bool = False
+    site_discount_amount: Optional[float] = None
+    site_discount_source: Optional[str] = None
+    baggage_allowance_pieces: Optional[int] = None
+    baggage_allowance_kg: Optional[float] = None
+    student_baggage_bonus_pieces: Optional[int] = None
+    student_baggage_bonus_kg: Optional[float] = None
+    price_breakdown: dict[str, float] = Field(default_factory=dict)
 
     @property
     def stops(self) -> int:
@@ -171,6 +185,24 @@ class FlightOffer(BaseModel):
     @property
     def effective_price(self) -> float:
         return self.true_price if self.true_price is not None else self.price
+
+    @property
+    def total_cabin_baggage_kg(self) -> Optional[float]:
+        """Base cabin allowance plus any student bonus (None if unknown)."""
+
+        base, bonus = self.baggage_allowance_kg, self.student_baggage_bonus_kg
+        if base is None and bonus is None:
+            return None
+        return (base or 0.0) + (bonus or 0.0)
+
+    @property
+    def total_cabin_baggage_pieces(self) -> Optional[int]:
+        """Base cabin pieces plus any student bonus (None if unknown)."""
+
+        base, bonus = self.baggage_allowance_pieces, self.student_baggage_bonus_pieces
+        if base is None and bonus is None:
+            return None
+        return (base or 0) + (bonus or 0)
 
 
 class ScoredFlight(BaseModel):

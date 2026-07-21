@@ -14,7 +14,9 @@ _SYSTEM = (
     "'X suitcases/checked bags' => checked_bags; 'carry-on only' => carry_on_only; "
     "'traveling with a child/kid/5-year-old' => travel_with_child; "
     "'infant/baby/lap child' => travel_with_infant; "
-    "'wheelchair/mobility' => mobility_needs; 'airsick/motion sickness/nervous flyer' => motion_sickness. "
+    "'wheelchair/mobility' => mobility_needs; 'airsick/motion sickness/nervous flyer' => motion_sickness; "
+    "'student/university/college/scholar ID' => is_student; "
+    "'X kg cabin/carry-on bag' => max_cabin_baggage_kg. "
     "Add any other useful hints as short strings in 'notes'."
 )
 
@@ -29,6 +31,7 @@ def parse_free_text(query: TripQuery) -> ParsedSignals:
     base = ParsedSignals(
         travel_with_child=query.children > 0,
         travel_with_infant=query.infants > 0,
+        is_student=query.is_student,
     )
 
     if not query.free_text or not query.free_text.strip():
@@ -50,4 +53,5 @@ def parse_free_text(query: TripQuery) -> ParsedSignals:
     # Union form-derived flags with LLM output (form is authoritative for pax).
     parsed.travel_with_child = parsed.travel_with_child or base.travel_with_child
     parsed.travel_with_infant = parsed.travel_with_infant or base.travel_with_infant
+    parsed.is_student = parsed.is_student or base.is_student
     return parsed

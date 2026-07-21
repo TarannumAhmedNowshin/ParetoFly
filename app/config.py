@@ -99,6 +99,13 @@ class Settings(BaseSettings):
         validation_alias=AliasChoices("SERPAPI_CACHE_TTL_SECONDS", "serpapi_cache_ttl_seconds"),
     )
 
+    # --- Downloadable per-search reports ---
+    reports_dir: str = Field(
+        default="reports",
+        validation_alias=AliasChoices("REPORTS_DIR", "reports_dir"),
+        description="Directory (repo-root relative or absolute) where generated reports are saved.",
+    )
+
     @property
     def cors_origins_list(self) -> list[str]:
         return [o.strip() for o in self.cors_allow_origins.split(",") if o.strip()]

@@ -71,3 +71,8 @@ export async function search(query: TripQuery): Promise<SearchResult> {
   }
   return (await response.json()) as SearchResult;
 }
+
+/** URL to download the generated Markdown report for a search session. */
+export function reportUrl(sessionId: string): string {
+  return `${API_BASE_URL}/report/${sessionId}`;
+}

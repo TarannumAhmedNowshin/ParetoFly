@@ -13,6 +13,7 @@ export interface Weights {
   reliability: number;
   aircraft_match: number;
   carbon: number;
+  luggage_fit: number;
 }
 
 export interface ParsedSignals {
@@ -23,6 +24,8 @@ export interface ParsedSignals {
   travel_with_infant: boolean;
   mobility_needs: boolean;
   motion_sickness: boolean;
+  is_student: boolean;
+  max_cabin_baggage_kg: number | null;
   preferred_arrival_start_hour: number | null;
   preferred_arrival_end_hour: number | null;
   preferred_aircraft: string[];
@@ -45,6 +48,7 @@ export interface TripQuery {
   max_layover_minutes?: number | null;
   preferred_airlines?: string[];
   excluded_airlines?: string[];
+  is_student?: boolean;
   currency: string;
   free_text?: string | null;
   persona?: Persona | null;
@@ -85,6 +89,16 @@ export interface FlightOffer {
   source: string;
   extensions: string[];
   true_price?: number | null;
+  student_discount_amount?: number | null;
+  student_discount_percent?: number | null;
+  student_discount_conditional?: boolean;
+  site_discount_amount?: number | null;
+  site_discount_source?: string | null;
+  baggage_allowance_pieces?: number | null;
+  baggage_allowance_kg?: number | null;
+  student_baggage_bonus_pieces?: number | null;
+  student_baggage_bonus_kg?: number | null;
+  price_breakdown?: Record<string, number>;
 }
 
 export type FeatureName =
@@ -95,7 +109,8 @@ export type FeatureName =
   | "arrival_fit"
   | "reliability"
   | "aircraft_match"
-  | "carbon";
+  | "carbon"
+  | "luggage_fit";
 
 export interface ScoredFlight {
   offer: FlightOffer;
@@ -113,6 +128,7 @@ export interface Recommendation {
 
 /** Response body from POST /search (and the terminal `result` SSE event). */
 export interface SearchResult {
+  session_id: string | null;
   error: string | null;
   log: string[];
   recommendations: Recommendation[];

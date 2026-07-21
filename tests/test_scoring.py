@@ -11,6 +11,7 @@ from app.scoring.model import (
     PERSONA_WEIGHTS,
     _arrival_fit_score,
     _layover_score,
+    _luggage_fit_score,
     _min_max_lower_better,
     _resolve_weights,
     _stops_score,
@@ -144,3 +145,38 @@ def test_resolve_weights_custom_weights_override_persona():
                      arrival_fit=0.0, reliability=0.0, aircraft_match=0.0, carbon=0.0)
     q = _base_query(children=1, weights=custom)
     assert _resolve_weights(q) == custom
+
+
+def test_all_weight_presets_sum_to_one():
+    fields = (
+        "price", "duration", "stops", "layover_quality", "arrival_fit",
+        "reliability", "aircraft_match", "carbon", "luggage_fit",
+    )
+    presets = {"default": Weights(), **PERSONA_WEIGHTS}
+    for name, w in presets.items():
+        total = sum(getattr(w, f) for f in fields)
+        assert total == pytest.approx(1.0), f"{name} weights sum to {total}"
+
+
+def test_layover_hard_limit_zeroes_feature():
+    offers = {o.id: o for o in make_offers()}
+    # balanced has a single 130-min layover.
+    assert _layover_score(offers["balanced"], max_minutes=60) == 0.0
+    assert _layover_score(offers["balanced"], max_minutes=240) == pytest.approx(1.0)
+
+
+def test_luggage_fit_neutral_without_baggage_concern():
+    query = _base_query()
+    offers = make_offers()
+    assert _luggage_fit_score(offers[0], query) == 0.5
+
+
+def test_luggage_fit_rewards_sufficient_allowance():
+    query = _base_query(signals=ParsedSignals(carry_on_only=True, max_cabin_baggage_kg=7.0))
+    offers = make_offers()
+    generous = offers[0]
+    generous.baggage_allowance_kg = 10.0
+    stingy = offers[1]
+    stingy.baggage_allowance_kg = 3.0
+    assert _luggage_fit_score(generous, query) == 1.0
+    assert _luggage_fit_score(stingy, query) == pytest.approx(0.2)

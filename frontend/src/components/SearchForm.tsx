@@ -83,7 +83,12 @@ export default function SearchForm({ onSearch, disabled }: Props) {
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [budget, setBudget] = useState("");
   const [maxStops, setMaxStops] = useState("");
+  const [maxLayover, setMaxLayover] = useState("");
   const [persona, setPersona] = useState<Persona | "">("");
+  const [isStudent, setIsStudent] = useState(false);
+  const [carryOnOnly, setCarryOnOnly] = useState(false);
+  const [arriveStart, setArriveStart] = useState("");
+  const [arriveEnd, setArriveEnd] = useState("");
   const [error, setError] = useState<string | null>(null);
 
   function handleSubmit(e: React.FormEvent) {
@@ -107,6 +112,17 @@ export default function SearchForm({ onSearch, disabled }: Props) {
       return;
     }
 
+    const hourFrom = (v: string): number | null =>
+      v ? Number(v.split(":")[0]) : null;
+    const arrStart = hourFrom(arriveStart);
+    const arrEnd = hourFrom(arriveEnd);
+    const freeTextParts: string[] = [];
+    if (freeText.trim()) freeTextParts.push(freeText.trim());
+    if (carryOnOnly) freeTextParts.push("carry-on only");
+    if (arrStart !== null && arrEnd !== null) {
+      freeTextParts.push(`arrive between ${arriveStart} and ${arriveEnd}`);
+    }
+
     const query: TripQuery = {
       origin,
       destination,
@@ -117,9 +133,11 @@ export default function SearchForm({ onSearch, disabled }: Props) {
       infants,
       cabin,
       currency: currency.trim().toUpperCase() || "USD",
-      free_text: freeText.trim() || null,
+      free_text: freeTextParts.join(". ") || null,
       budget: budget ? Number(budget) : null,
       max_stops: maxStops === "" ? null : Number(maxStops),
+      max_layover_minutes: maxLayover === "" ? null : Number(maxLayover),
+      is_student: isStudent,
       persona: persona || null,
     };
     onSearch(query);
@@ -263,6 +281,61 @@ export default function SearchForm({ onSearch, disabled }: Props) {
                 </option>
               ))}
             </select>
+          </label>
+          <label className={labelClass}>
+            Max layover
+            <select
+              className={inputClass}
+              value={maxLayover}
+              onChange={(e) => setMaxLayover(e.target.value)}
+              disabled={disabled}
+            >
+              <option value="">Any</option>
+              <option value="60">1 hour</option>
+              <option value="120">2 hours</option>
+              <option value="240">4 hours</option>
+              <option value="480">8 hours</option>
+            </select>
+          </label>
+          <label className={labelClass}>
+            Arrive after
+            <input
+              type="time"
+              className={inputClass}
+              value={arriveStart}
+              onChange={(e) => setArriveStart(e.target.value)}
+              disabled={disabled}
+            />
+          </label>
+          <label className={labelClass}>
+            Arrive before
+            <input
+              type="time"
+              className={inputClass}
+              value={arriveEnd}
+              onChange={(e) => setArriveEnd(e.target.value)}
+              disabled={disabled}
+            />
+          </label>
+          <label className="flex items-center gap-2 text-xs font-medium text-slate-600">
+            <input
+              type="checkbox"
+              className="h-4 w-4 rounded border-slate-300"
+              checked={isStudent}
+              onChange={(e) => setIsStudent(e.target.checked)}
+              disabled={disabled}
+            />
+            I&apos;m a student
+          </label>
+          <label className="flex items-center gap-2 text-xs font-medium text-slate-600">
+            <input
+              type="checkbox"
+              className="h-4 w-4 rounded border-slate-300"
+              checked={carryOnOnly}
+              onChange={(e) => setCarryOnOnly(e.target.checked)}
+              disabled={disabled}
+            />
+            Carry-on only
           </label>
         </div>
       )}

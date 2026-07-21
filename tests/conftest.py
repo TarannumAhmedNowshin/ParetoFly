@@ -4,7 +4,26 @@ from __future__ import annotations
 
 from datetime import datetime
 
+import pytest
+
+import app.enrichment as enrichment
 from app.models.schemas import FlightOffer, FlightSegment, Layover
+
+
+@pytest.fixture(autouse=True)
+def _no_enrichment_network(monkeypatch):
+    """Keep enrichment hermetic: no Serper/LLM calls, fresh caches per test."""
+
+    monkeypatch.setattr(enrichment, "web_search", lambda *a, **k: [])
+    for fn in (
+        enrichment._first_checked_bag_fee,
+        enrichment._student_benefit,
+        enrichment._site_discount,
+        enrichment._baggage_allowance,
+    ):
+        fn.cache_clear()
+    yield
+
 
 
 def _seg(
