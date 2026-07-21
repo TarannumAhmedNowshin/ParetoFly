@@ -398,6 +398,14 @@ IDEAS.md
 PROGRESS.md
 NOTES.md
 TODO.md
+
+# ============================================================
+# Project docs (kept local, not for the repo)
+# ============================================================
+CODEBASE_GUIDE.md
+LANGGRAPH_GUIDE.md
+PARETOFLY.md
+start.md
 SCRATCH.md
 updates.md
 UPDATES.md
