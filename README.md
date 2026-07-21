@@ -97,7 +97,7 @@ app/
   graph/               # state.py, nodes.py, build.py (the state machine)
   api/main.py          # /health, /search, /search/stream
   cli.py               # local harness
-frontend/              # Next.js UI (see frontend/README.md)
+frontend/              # Next.js UI (App Router)
 tests/                 # unit + integration, all network mocked
 docs/                  # concept + engineering guides
 ```
