@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 import type { CabinClass, Persona, TripQuery } from "@/types/api";
+import AirportSelect from "@/components/AirportSelect";
+import { findAirport } from "@/lib/airports";
 
 const CABIN_OPTIONS: { value: CabinClass; label: string }[] = [
   { value: "economy", label: "Economy" },
@@ -68,8 +70,8 @@ const inputClass =
 const labelClass = "flex flex-col gap-1 text-xs font-medium text-slate-500";
 
 export default function SearchForm({ onSearch, disabled }: Props) {
-  const [origin, setOrigin] = useState("JFK");
-  const [destination, setDestination] = useState("LAX");
+  const [origin, setOrigin] = useState("");
+  const [destination, setDestination] = useState("");
   const [departDate, setDepartDate] = useState("");
   const [returnDate, setReturnDate] = useState("");
   const [adults, setAdults] = useState(1);
@@ -84,14 +86,16 @@ export default function SearchForm({ onSearch, disabled }: Props) {
   const [persona, setPersona] = useState<Persona | "">("");
   const [error, setError] = useState<string | null>(null);
 
-  const iata = (v: string) => v.trim().toUpperCase().slice(0, 3);
-
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
 
-    if (origin.length !== 3 || destination.length !== 3) {
-      setError("Origin and destination must be 3-letter IATA codes.");
+    if (!findAirport(origin) || !findAirport(destination)) {
+      setError("Please pick an origin and destination from the suggestions.");
+      return;
+    }
+    if (origin === destination) {
+      setError("Origin and destination must be different.");
       return;
     }
     if (!departDate) {
@@ -127,28 +131,20 @@ export default function SearchForm({ onSearch, disabled }: Props) {
       className="flex flex-col gap-5 rounded-2xl border border-slate-200 bg-white/80 p-6 shadow-sm backdrop-blur"
     >
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <label className={labelClass}>
-          From
-          <input
-            className={inputClass}
-            value={origin}
-            onChange={(e) => setOrigin(iata(e.target.value))}
-            placeholder="JFK"
-            maxLength={3}
-            disabled={disabled}
-          />
-        </label>
-        <label className={labelClass}>
-          To
-          <input
-            className={inputClass}
-            value={destination}
-            onChange={(e) => setDestination(iata(e.target.value))}
-            placeholder="LAX"
-            maxLength={3}
-            disabled={disabled}
-          />
-        </label>
+        <AirportSelect
+          label="From"
+          value={origin}
+          onChange={setOrigin}
+          placeholder="City or airport, e.g. Dhaka"
+          disabled={disabled}
+        />
+        <AirportSelect
+          label="To"
+          value={destination}
+          onChange={setDestination}
+          placeholder="City or airport, e.g. Los Angeles"
+          disabled={disabled}
+        />
         <label className={labelClass}>
           Departure
           <input

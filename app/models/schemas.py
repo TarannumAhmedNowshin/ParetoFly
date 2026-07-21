@@ -66,8 +66,8 @@ class ParsedSignals(BaseModel):
 class TripQuery(BaseModel):
     """Validated trip request assembled from the hybrid intake form + free text."""
 
-    origin: str = Field(..., min_length=3, max_length=3, description="IATA code")
-    destination: str = Field(..., min_length=3, max_length=3, description="IATA code")
+    origin: str = Field(..., description="IATA code or city/airport name")
+    destination: str = Field(..., description="IATA code or city/airport name")
     depart_date: date
     return_date: Optional[date] = None
 
@@ -96,8 +96,10 @@ class TripQuery(BaseModel):
 
     @field_validator("origin", "destination")
     @classmethod
-    def _upper(cls, v: str) -> str:
-        return v.upper()
+    def _resolve_airport(cls, v: str) -> str:
+        from app.airports import resolve_airport
+
+        return resolve_airport(v)
 
     @property
     def is_round_trip(self) -> bool:

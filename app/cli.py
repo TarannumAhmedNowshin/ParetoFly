@@ -37,8 +37,8 @@ def build_parser() -> argparse.ArgumentParser:
         prog="paretofly",
         description="Find the top-3 Pareto-optimal flights with explanations.",
     )
-    parser.add_argument("--from", dest="origin", required=True, help="Origin IATA code, e.g. DAC")
-    parser.add_argument("--to", dest="destination", required=True, help="Destination IATA code, e.g. JFK")
+    parser.add_argument("--from", dest="origin", required=True, help="Origin IATA code or city name, e.g. DAC or Dhaka")
+    parser.add_argument("--to", dest="destination", required=True, help="Destination IATA code or city name, e.g. JFK or New York")
     parser.add_argument("--depart", dest="depart", required=True, type=_parse_date, help="Departure date YYYY-MM-DD")
     parser.add_argument("--return", dest="return_date", type=_parse_date, default=None, help="Return date YYYY-MM-DD (optional)")
     parser.add_argument("--adults", type=int, default=1)
