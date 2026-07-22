@@ -226,3 +226,7 @@ tests run fast and consume no API budget.
 ```powershell
 .\.venv\Scripts\python.exe -m pytest -q
 ```
+
+## License
+
+Released under the [MIT License](LICENSE).
