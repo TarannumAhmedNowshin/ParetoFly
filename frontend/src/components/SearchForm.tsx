@@ -4,6 +4,7 @@ import { useState } from "react";
 import type { CabinClass, Persona, TripQuery } from "@/types/api";
 import AirportSelect from "@/components/AirportSelect";
 import DatePicker from "@/components/DatePicker";
+import CurrencySelect from "@/components/CurrencySelect";
 import { findAirport } from "@/lib/airports";
 
 const CABIN_OPTIONS: { value: CabinClass; label: string }[] = [
@@ -29,34 +30,54 @@ function Stepper({
   label,
   value,
   min,
+  max = 9,
   onChange,
   disabled,
 }: {
   label: string;
   value: number;
   min: number;
+  max?: number;
   onChange: (v: number) => void;
   disabled?: boolean;
 }) {
+  const clamp = (n: number) => Math.min(max, Math.max(min, n));
   return (
     <div className="flex flex-col gap-1">
       <span className="text-xs font-medium text-slate-500">{label}</span>
-      <div className="flex items-center rounded-lg border border-slate-300 bg-white">
+      <div className="flex items-center rounded-xl border border-slate-200 bg-white/90 shadow-sm transition-colors focus-within:border-indigo-400 focus-within:ring-4 focus-within:ring-indigo-500/10">
         <button
           type="button"
-          className="px-3 py-2 text-slate-500 hover:text-slate-900 disabled:opacity-40"
-          onClick={() => onChange(Math.max(min, value - 1))}
+          className="px-3.5 py-2.5 text-lg leading-none text-slate-400 transition-colors hover:text-indigo-600 disabled:opacity-40"
+          onClick={() => onChange(clamp(value - 1))}
           disabled={disabled || value <= min}
           aria-label={`Decrease ${label}`}
         >
           –
         </button>
-        <span className="min-w-8 text-center text-sm font-semibold text-slate-900">{value}</span>
+        <input
+          type="text"
+          inputMode="numeric"
+          pattern="[0-9]*"
+          value={value}
+          onChange={(e) => {
+            const digits = e.target.value.replace(/\D/g, "");
+            if (digits === "") {
+              onChange(min);
+              return;
+            }
+            onChange(clamp(Number(digits)));
+          }}
+          onFocus={(e) => e.target.select()}
+          disabled={disabled}
+          aria-label={label}
+          className="w-8 min-w-8 bg-transparent text-center text-sm font-semibold text-slate-900 focus:outline-none disabled:opacity-40"
+        />
         <button
           type="button"
-          className="px-3 py-2 text-slate-500 hover:text-slate-900 disabled:opacity-40"
-          onClick={() => onChange(value + 1)}
-          disabled={disabled}
+          className="px-3.5 py-2.5 text-lg leading-none text-slate-400 transition-colors hover:text-indigo-600 disabled:opacity-40"
+          onClick={() => onChange(clamp(value + 1))}
+          disabled={disabled || value >= max}
           aria-label={`Increase ${label}`}
         >
           +
@@ -67,8 +88,8 @@ function Stepper({
 }
 
 const inputClass =
-  "rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200";
-const labelClass = "flex flex-col gap-1 text-xs font-medium text-slate-500";
+  "rounded-xl border border-slate-200 bg-white/90 px-3.5 py-2.5 text-sm text-slate-900 shadow-sm transition-colors focus:border-indigo-400 focus:outline-none focus:ring-4 focus:ring-indigo-500/10 hover:border-slate-300";
+const labelClass = "flex flex-col gap-1.5 text-xs font-medium text-slate-500";
 
 export default function SearchForm({ onSearch, disabled }: Props) {
   const [tripType, setTripType] = useState<"round_trip" | "one_way">("round_trip");
@@ -154,12 +175,12 @@ export default function SearchForm({ onSearch, disabled }: Props) {
   return (
     <form
       onSubmit={handleSubmit}
-      className="flex flex-col gap-5 rounded-2xl border border-slate-200 bg-white/80 p-6 shadow-sm backdrop-blur"
+      className="flex flex-col gap-5 rounded-3xl border border-white/60 bg-white/70 p-6 shadow-xl shadow-slate-900/5 ring-1 ring-slate-900/5 backdrop-blur-xl sm:p-7"
     >
       <div
         role="radiogroup"
         aria-label="Trip type"
-        className="inline-flex self-start rounded-lg border border-slate-300 bg-slate-100 p-0.5"
+        className="inline-flex self-start rounded-xl border border-slate-200 bg-slate-100/80 p-1"
       >
         {([
           { value: "round_trip", label: "Round trip" },
@@ -172,9 +193,9 @@ export default function SearchForm({ onSearch, disabled }: Props) {
             aria-checked={tripType === opt.value}
             onClick={() => setTripType(opt.value)}
             disabled={disabled}
-            className={`rounded-md px-4 py-1.5 text-sm font-medium transition-colors disabled:opacity-40 ${
+            className={`rounded-lg px-4 py-1.5 text-sm font-medium transition-all disabled:opacity-40 ${
               tripType === opt.value
-                ? "bg-white text-indigo-600 shadow-sm"
+                ? "bg-white text-indigo-600 shadow-sm ring-1 ring-slate-900/5"
                 : "text-slate-500 hover:text-slate-900"
             }`}
           >
@@ -183,7 +204,7 @@ export default function SearchForm({ onSearch, disabled }: Props) {
         ))}
       </div>
 
-      <div className="flex items-center justify-between gap-4 rounded-xl border border-slate-200 bg-white px-4 py-3">
+      <div className="flex items-center justify-between gap-4 rounded-xl border border-slate-200 bg-linear-to-r from-emerald-50/60 to-white px-4 py-3.5">
         <div className="flex flex-col">
           <span className="flex items-center gap-2 text-sm font-medium text-slate-900">
             <svg
@@ -281,16 +302,7 @@ export default function SearchForm({ onSearch, disabled }: Props) {
             ))}
           </select>
         </label>
-        <label className={labelClass}>
-          Currency
-          <input
-            className={inputClass}
-            value={currency}
-            onChange={(e) => setCurrency(e.target.value.toUpperCase().slice(0, 3))}
-            maxLength={3}
-            disabled={disabled}
-          />
-        </label>
+        <CurrencySelect value={currency} onChange={setCurrency} disabled={disabled} />
       </div>
 
       <label className={labelClass}>
@@ -306,14 +318,26 @@ export default function SearchForm({ onSearch, disabled }: Props) {
 
       <button
         type="button"
-        className="self-start text-sm font-medium text-indigo-600 hover:text-indigo-800"
+        className="inline-flex items-center gap-1 self-start text-sm font-medium text-indigo-600 transition-colors hover:text-indigo-800"
         onClick={() => setShowAdvanced((v) => !v)}
       >
-        {showAdvanced ? "− Hide" : "+ Refine"} advanced options
+        <svg
+          viewBox="0 0 24 24"
+          className={`h-4 w-4 transition-transform ${showAdvanced ? "rotate-180" : ""}`}
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          aria-hidden="true"
+        >
+          <path d="m6 9 6 6 6-6" />
+        </svg>
+        {showAdvanced ? "Hide" : "Refine"} advanced options
       </button>
 
       {showAdvanced && (
-        <div className="grid grid-cols-1 gap-4 rounded-xl bg-slate-50 p-4 sm:grid-cols-3">
+        <div className="grid animate-fade-in grid-cols-1 gap-4 rounded-2xl border border-slate-200 bg-slate-50/80 p-4 sm:grid-cols-3">
           <label className={labelClass}>
             Max budget
             <input
@@ -417,10 +441,38 @@ export default function SearchForm({ onSearch, disabled }: Props) {
 
       <button
         type="submit"
-        className="rounded-xl bg-indigo-600 px-6 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-60"
+        className="group relative overflow-hidden rounded-2xl bg-linear-to-r from-indigo-600 via-violet-600 to-indigo-600 bg-size-[200%_100%] px-6 py-3.5 text-sm font-semibold text-white shadow-lg shadow-indigo-500/25 transition-all hover:bg-position-[100%_0] hover:shadow-xl hover:shadow-indigo-500/30 focus:outline-none focus:ring-4 focus:ring-indigo-500/25 disabled:cursor-not-allowed disabled:opacity-60"
         disabled={disabled}
       >
-        {disabled ? "Searching…" : "Find the best 3 flights"}
+        <span className="flex items-center justify-center gap-2">
+          {disabled ? (
+            <>
+              <svg
+                className="h-4 w-4 animate-spin"
+                viewBox="0 0 24 24"
+                fill="none"
+                aria-hidden="true"
+              >
+                <circle
+                  className="opacity-25"
+                  cx="12"
+                  cy="12"
+                  r="10"
+                  stroke="currentColor"
+                  strokeWidth="4"
+                />
+                <path
+                  className="opacity-90"
+                  fill="currentColor"
+                  d="M4 12a8 8 0 0 1 8-8V0C5.4 0 0 5.4 0 12h4Z"
+                />
+              </svg>
+              Searching…
+            </>
+          ) : (
+            "Find the best 3 flights"
+          )}
+        </span>
       </button>
     </form>
   );

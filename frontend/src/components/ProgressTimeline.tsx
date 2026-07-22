@@ -46,7 +46,7 @@ export default function ProgressTimeline({ currentNode, done }: Props) {
   const currentIndex = currentNode != null ? STAGE_ORDER[currentNode] ?? 0 : 0;
 
   return (
-    <ol className="flex flex-col gap-4 rounded-2xl border border-slate-200 bg-white/80 p-6 shadow-sm backdrop-blur">
+    <ol className="flex animate-fade-up flex-col gap-4 rounded-3xl border border-white/60 bg-white/70 p-6 shadow-xl shadow-slate-900/5 ring-1 ring-slate-900/5 backdrop-blur-xl">
       {PIPELINE_STAGES.map((stage, i) => {
         const state = stateFor(i, currentIndex, done);
         return (

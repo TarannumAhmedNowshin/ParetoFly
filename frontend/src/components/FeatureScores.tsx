@@ -16,14 +16,25 @@ const FEATURE_ORDER: FeatureName[] = [
 /**
  * The backend stores *weighted* contributions in `feature_scores`, so we
  * normalize each bar against the max contribution to show relative strengths.
+ * Features that were never considered (zero weight everywhere, e.g. carbon when
+ * eco-ranking is off) are passed in via `consideredFeatures` and hidden.
  */
-export default function FeatureScores({ scored }: { scored: ScoredFlight }) {
+export default function FeatureScores({
+  scored,
+  consideredFeatures,
+}: {
+  scored: ScoredFlight;
+  consideredFeatures?: Set<FeatureName>;
+}) {
   const scores = scored.feature_scores;
-  const max = Math.max(...FEATURE_ORDER.map((f) => scores[f] ?? 0), 0.0001);
+  const features = consideredFeatures
+    ? FEATURE_ORDER.filter((f) => consideredFeatures.has(f))
+    : FEATURE_ORDER;
+  const max = Math.max(...features.map((f) => scores[f] ?? 0), 0.0001);
 
   return (
     <div className="grid grid-cols-2 gap-x-4 gap-y-2">
-      {FEATURE_ORDER.map((feature) => {
+      {features.map((feature) => {
         const value = scores[feature] ?? 0;
         const pct = Math.round((value / max) * 100);
         return (
@@ -33,7 +44,7 @@ export default function FeatureScores({ scored }: { scored: ScoredFlight }) {
             </span>
             <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-slate-100">
               <div
-                className="h-full rounded-full bg-indigo-400"
+                className="h-full rounded-full bg-linear-to-r from-indigo-500 to-violet-400 transition-[width] duration-500"
                 style={{ width: `${pct}%` }}
               />
             </div>

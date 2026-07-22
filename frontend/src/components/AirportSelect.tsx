@@ -12,8 +12,8 @@ interface Props {
 }
 
 const inputClass =
-  "rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200";
-const labelClass = "flex flex-col gap-1 text-xs font-medium text-slate-500";
+  "rounded-xl border border-slate-200 bg-white/90 px-3.5 py-2.5 text-sm text-slate-900 shadow-sm transition-colors focus:border-indigo-400 focus:outline-none focus:ring-4 focus:ring-indigo-500/10 hover:border-slate-300";
+const labelClass = "flex flex-col gap-1.5 text-xs font-medium text-slate-500";
 
 /** Autocomplete for airports: type a city/airport/country name, submit an IATA code. */
 export default function AirportSelect({ label, value, onChange, placeholder, disabled }: Props) {
