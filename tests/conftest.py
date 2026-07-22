@@ -7,22 +7,23 @@ from datetime import datetime
 import pytest
 
 import app.enrichment as enrichment
+import app.tools.web_knowledge as web_knowledge
 from app.models.schemas import FlightOffer, FlightSegment, Layover
+from app.tools.kb_cache import KnowledgeCache
 
 
 @pytest.fixture(autouse=True)
-def _no_enrichment_network(monkeypatch):
-    """Keep enrichment hermetic: no Serper/LLM calls, fresh caches per test."""
+def _no_enrichment_network(monkeypatch, tmp_path):
+    """Keep enrichment hermetic: no web calls, temp cache, fresh state per test."""
 
-    monkeypatch.setattr(enrichment, "web_search", lambda *a, **k: [])
-    for fn in (
-        enrichment._first_checked_bag_fee,
-        enrichment._student_benefit,
-        enrichment._site_discount,
-        enrichment._baggage_allowance,
-    ):
-        fn.cache_clear()
+    monkeypatch.setattr(enrichment, "get_web_snippets", lambda *a, **k: [])
+    monkeypatch.setattr(enrichment, "_CACHE", KnowledgeCache(str(tmp_path / "kb"), 3600))
+    enrichment._MEM.clear()
+    web_knowledge.reset_health()
+    web_knowledge.reset_status()
     yield
+    enrichment._MEM.clear()
+
 
 
 

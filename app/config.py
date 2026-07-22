@@ -106,6 +106,58 @@ class Settings(BaseSettings):
         description="Directory (repo-root relative or absolute) where generated reports are saved.",
     )
 
+    # --- Enrichment knowledge cache (baggage fees, discounts, allowances) ---
+    kb_cache_dir: str = Field(
+        default=".cache/kb",
+        validation_alias=AliasChoices("KB_CACHE_DIR", "kb_cache_dir"),
+    )
+    kb_cache_ttl_seconds: int = Field(
+        default=1209600,  # 14 days — fees/programs change slowly
+        validation_alias=AliasChoices("KB_CACHE_TTL_SECONDS", "kb_cache_ttl_seconds"),
+    )
+    enrich_max_workers: int = Field(
+        default=6,
+        validation_alias=AliasChoices("ENRICH_MAX_WORKERS", "enrich_max_workers"),
+        description="Max concurrent per-airline enrichment lookups.",
+    )
+    enrich_timeout: float = Field(
+        default=45.0,
+        validation_alias=AliasChoices("ENRICH_TIMEOUT", "enrich_timeout"),
+        description="Overall budget (s) for concurrent enrichment; slow airlines are skipped.",
+    )
+
+    # --- Web-knowledge fallback providers ---
+    duckduckgo_fallback_enabled: bool = Field(
+        default=True,
+        validation_alias=AliasChoices("DUCKDUCKGO_FALLBACK_ENABLED", "duckduckgo_fallback_enabled"),
+    )
+    playwright_fallback_enabled: bool = Field(
+        default=True,
+        validation_alias=AliasChoices("PLAYWRIGHT_FALLBACK_ENABLED", "playwright_fallback_enabled"),
+    )
+    web_search_timeout: float = Field(
+        default=20.0,
+        validation_alias=AliasChoices("WEB_SEARCH_TIMEOUT", "web_search_timeout"),
+    )
+    provider_cooldown_seconds: int = Field(
+        default=600,  # circuit-breaker: skip a failing provider for 10 min
+        validation_alias=AliasChoices("PROVIDER_COOLDOWN_SECONDS", "provider_cooldown_seconds"),
+    )
+
+    # --- Currency conversion (keyless FX for unsupported Google Flights currencies) ---
+    fx_api_base: str = Field(
+        default="https://open.er-api.com/v6/latest",
+        validation_alias=AliasChoices("FX_API_BASE", "fx_api_base"),
+    )
+    fx_cache_dir: str = Field(
+        default=".cache/fx",
+        validation_alias=AliasChoices("FX_CACHE_DIR", "fx_cache_dir"),
+    )
+    fx_cache_ttl_seconds: int = Field(
+        default=21600,  # 6 hours — intraday FX drift is immaterial for fare display
+        validation_alias=AliasChoices("FX_CACHE_TTL_SECONDS", "fx_cache_ttl_seconds"),
+    )
+
     @property
     def cors_origins_list(self) -> list[str]:
         return [o.strip() for o in self.cors_allow_origins.split(",") if o.strip()]

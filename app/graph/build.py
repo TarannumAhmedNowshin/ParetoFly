@@ -5,6 +5,7 @@ from __future__ import annotations
 from langgraph.graph import END, START, StateGraph
 
 from app.graph.nodes import (
+    convert_node,
     enrich_node,
     explain_node,
     intake_node,
@@ -32,6 +33,7 @@ def build_graph():
     graph.add_node("intake", intake_node)
     graph.add_node("search", search_node)
     graph.add_node("enrich", enrich_node)
+    graph.add_node("convert", convert_node)
     graph.add_node("score", score_node)
     graph.add_node("rank", rank_node)
     graph.add_node("explain", explain_node)
@@ -40,7 +42,8 @@ def build_graph():
     graph.add_edge(START, "intake")
     graph.add_edge("intake", "search")
     graph.add_conditional_edges("search", _has_offers, {"enrich": "enrich", "present": "present"})
-    graph.add_edge("enrich", "score")
+    graph.add_edge("enrich", "convert")
+    graph.add_edge("convert", "score")
     graph.add_edge("score", "rank")
     graph.add_edge("rank", "explain")
     graph.add_edge("explain", "present")

@@ -59,9 +59,19 @@ def score_node(state: GraphState) -> GraphState:
 def enrich_node(state: GraphState) -> GraphState:
     """Fold checked-baggage fees into true prices (skipped when no checked bags)."""
 
+    from app.tools.web_knowledge import last_status, reset_status
+
     offers = state.get("offers", [])
+    reset_status()
     adjusted = enrich_true_prices(offers, state["query"])
-    return {"offers": offers, "log": _log(state, f"enrich: adjusted {adjusted} true prices")}
+    status = last_status()
+    if status.all_failed:
+        note = " [web search unavailable — discounts skipped]"
+    elif status.provider and status.provider != "serper":
+        note = f" [via {status.provider} fallback]"
+    else:
+        note = ""
+    return {"offers": offers, "log": _log(state, f"enrich: adjusted {adjusted} true prices{note}")}
 
 
 def rank_node(state: GraphState) -> GraphState:
@@ -71,6 +81,26 @@ def rank_node(state: GraphState) -> GraphState:
     top = diversity_top_k(scored, k=3)
     recs = [Recommendation(rank=i + 1, scored=s) for i, s in enumerate(top)]
     return {"recommendations": recs, "log": _log(state, f"rank: selected top {len(recs)}")}
+
+
+def convert_node(state: GraphState) -> GraphState:
+    """Convert fares to the traveler's requested currency when the search fell
+    back to a supported one (e.g. USD for BDT). No-op when they already match."""
+
+    from app.tools.fx import convert_offers, get_fx_rate
+
+    offers = state.get("offers", [])
+    query: TripQuery = state["query"]
+    if not offers:
+        return {"log": _log(state, "convert: no offers")}
+    src = offers[0].currency
+    if src == query.currency:
+        return {"offers": offers}
+    rate = get_fx_rate(src, query.currency)
+    if rate is None:
+        return {"offers": offers, "log": _log(state, f"convert: FX unavailable, kept {src}")}
+    convert_offers(offers, query.currency, rate)
+    return {"offers": offers, "log": _log(state, f"convert: {src}->{query.currency} @ {rate:.4f}")}
 
 
 def _fmt_duration(minutes: int) -> str:

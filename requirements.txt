@@ -10,6 +10,9 @@ fastapi>=0.115
 uvicorn[standard]>=0.30
 sse-starlette>=2.1
 
+# web-knowledge fallback (headless browser search); browser via `playwright install chromium`
+playwright>=1.45
+
 # dev / test
 pytest>=8.2
 pytest-asyncio>=0.23

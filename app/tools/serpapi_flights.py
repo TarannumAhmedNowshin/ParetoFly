@@ -12,6 +12,7 @@ Reference response fields used:
 from __future__ import annotations
 
 import hashlib
+import re
 from datetime import datetime
 from typing import Any, Optional
 
@@ -22,6 +23,12 @@ from app.models.schemas import FlightOffer, FlightSegment, Layover, TripQuery
 from app.tools.flight_cache import FlightCache, cache_key
 
 _DELAY_FLAG = "often_delayed_by_over_30_min"
+
+
+def _redact(text: str) -> str:
+    """Strip the api_key value from any string before it reaches logs/errors."""
+
+    return re.sub(r"(api_key=)[^&\s]+", r"\1<redacted>", text)
 
 
 class SerpApiError(RuntimeError):
@@ -167,23 +174,36 @@ def search_flights(
             return cached
 
     params = _build_params(query, settings)
+    result_currency = query.currency
 
     owns_client = client is None
     client = client or httpx.Client(timeout=timeout)
     try:
-        response = client.get(settings.serpapi_base_url, params=params)
-        response.raise_for_status()
-        payload = response.json()
+        try:
+            response = client.get(settings.serpapi_base_url, params=params)
+            response.raise_for_status()
+            payload = response.json()
+        except httpx.HTTPStatusError as exc:
+            # Google Flights rejects some currencies (e.g. BDT) with HTTP 400.
+            # Retry once in USD so the traveler still gets fares instead of nothing.
+            if exc.response.status_code == 400 and query.currency.upper() != "USD":
+                params["currency"] = "USD"
+                result_currency = "USD"
+                response = client.get(settings.serpapi_base_url, params=params)
+                response.raise_for_status()
+                payload = response.json()
+            else:
+                raise
     except httpx.HTTPError as exc:
-        raise SerpApiError(f"SerpAPI request failed: {exc}") from exc
+        raise SerpApiError(f"SerpAPI request failed: {_redact(str(exc))}") from exc
     finally:
         if owns_client:
             client.close()
 
     if payload.get("error"):
-        raise SerpApiError(str(payload["error"]))
+        raise SerpApiError(_redact(str(payload["error"])))
 
-    offers = _extract_offers(payload, query.currency)
+    offers = _extract_offers(payload, result_currency)
     if cache is not None and offers:
         cache.set(key, offers)
     return offers

@@ -24,8 +24,8 @@ def get_mini_llm() -> AzureChatOpenAI:
         api_version=s.azure_gpt5_mini_api_version,
         azure_deployment=s.azure_gpt5_mini_deployment,
         temperature=1,
-        timeout=60,
-        max_retries=2,
+        timeout=45,
+        max_retries=1,
     )
 
 
@@ -38,6 +38,8 @@ def get_full_llm() -> AzureChatOpenAI:
         api_version=s.azure_gpt5_api_version,
         azure_deployment=s.azure_gpt5_deployment,
         temperature=1,
-        timeout=90,
-        max_retries=2,
+        # Explanations have a rule-based fallback, so fail over fast rather than
+        # stalling a whole search when the GPT-5 endpoint is slow.
+        timeout=30,
+        max_retries=1,
     )
