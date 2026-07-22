@@ -1,13 +1,14 @@
 # ParetoFly
 
-A flight-search agent that returns three Pareto-optimal itineraries instead of a
-sortable list of hundreds. Each result is scored on nine weighted criteria and
-comes with a grounded, plain-English explanation of the trade-off it represents.
+A weekend project: I needed to book a flight, so instead of messaging a travel
+agent I built an AI one. You write your requirements in your own words — "cheapest
+option, student fares if any, no red-eyes, arriving before noon" — and it searches
+flights, works out the real price (fare plus baggage fees and any student discounts
+it can actually find and cite, converted at the real-time currency rate), and
+returns three genuinely different options, each with an honest explanation of the
+trade-off.
 
-The agent parses both structured inputs and free-text constraints, normalizes the
-true cost of every candidate (fare plus baggage fees and applicable discounts),
-ranks for quality and diversity, and explains its reasoning. It is recommend-only:
-no booking, no payments, no persisted PII.
+It is recommend-only: no booking, no payments, no persisted PII.
 
 ## What it does
 
