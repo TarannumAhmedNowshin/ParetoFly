@@ -16,7 +16,7 @@ from app.tools.kb_cache import KnowledgeCache
 def _no_enrichment_network(monkeypatch, tmp_path):
     """Keep enrichment hermetic: no web calls, temp cache, fresh state per test."""
 
-    monkeypatch.setattr(enrichment, "get_web_snippets", lambda *a, **k: [])
+    monkeypatch.setattr(enrichment, "get_web_documents", lambda *a, **k: [])
     monkeypatch.setattr(enrichment, "_CACHE", KnowledgeCache(str(tmp_path / "kb"), 3600))
     enrichment._MEM.clear()
     web_knowledge.reset_health()

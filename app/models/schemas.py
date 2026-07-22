@@ -86,6 +86,10 @@ class TripQuery(BaseModel):
     preferred_airlines: list[str] = Field(default_factory=list)
     excluded_airlines: list[str] = Field(default_factory=list)
     is_student: bool = False
+    eco_friendly: bool = Field(
+        default=False,
+        description="When true, carbon emissions become a real ranking factor; otherwise they are ignored.",
+    )
     currency: str = "USD"
 
     # Free-text box + parsed result
@@ -158,8 +162,13 @@ class FlightOffer(BaseModel):
     student_discount_amount: Optional[float] = None
     student_discount_percent: Optional[float] = None
     student_discount_conditional: bool = False
+    student_discount_source: Optional[str] = None
+    student_discount_source_url: Optional[str] = None
+    student_discount_evidence: Optional[str] = None
     site_discount_amount: Optional[float] = None
     site_discount_source: Optional[str] = None
+    site_discount_source_url: Optional[str] = None
+    site_discount_evidence: Optional[str] = None
     baggage_allowance_pieces: Optional[int] = None
     baggage_allowance_kg: Optional[float] = None
     student_baggage_bonus_pieces: Optional[int] = None

@@ -125,6 +125,21 @@ class Settings(BaseSettings):
         validation_alias=AliasChoices("ENRICH_TIMEOUT", "enrich_timeout"),
         description="Overall budget (s) for concurrent enrichment; slow airlines are skipped.",
     )
+    enrich_min_corroboration: int = Field(
+        default=2,
+        validation_alias=AliasChoices("ENRICH_MIN_CORROBORATION", "enrich_min_corroboration"),
+        description="Min distinct web snippets that must support a discount (unless an official source vouches for it).",
+    )
+    enrich_min_confidence: float = Field(
+        default=0.6,
+        validation_alias=AliasChoices("ENRICH_MIN_CONFIDENCE", "enrich_min_confidence"),
+        description="Min LLM confidence (0-1) required before a discount is folded into the price.",
+    )
+    enrich_trust_official_single: bool = Field(
+        default=True,
+        validation_alias=AliasChoices("ENRICH_TRUST_OFFICIAL_SINGLE", "enrich_trust_official_single"),
+        description="Accept a discount backed by the airline's own official domain even with a single source.",
+    )
 
     # --- Web-knowledge fallback providers ---
     duckduckgo_fallback_enabled: bool = Field(

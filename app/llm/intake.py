@@ -3,7 +3,10 @@
 from __future__ import annotations
 
 from app.llm.azure_client import get_mini_llm
+from app.logging_config import get_logger
 from app.models.schemas import ParsedSignals, TripQuery
+
+log = get_logger("llm.intake")
 
 _SYSTEM = (
     "You extract structured travel constraints from a traveler's free-text note. "
@@ -35,6 +38,7 @@ def parse_free_text(query: TripQuery) -> ParsedSignals:
     )
 
     if not query.free_text or not query.free_text.strip():
+        log.debug("intake: no free text; using form-derived signals only")
         return base
 
     prompt = (
@@ -47,7 +51,9 @@ def parse_free_text(query: TripQuery) -> ParsedSignals:
         parsed: ParsedSignals = llm.invoke(
             [("system", _SYSTEM), ("human", prompt)]
         )
-    except Exception:  # pragma: no cover - network/parse failure -> safe fallback
+        log.info("intake: LLM parsed free text (%d chars)", len(query.free_text.strip()))
+    except Exception as exc:  # pragma: no cover - network/parse failure -> safe fallback
+        log.warning("intake: LLM parse failed (%s); using form-derived signals", exc)
         return base
 
     # Union form-derived flags with LLM output (form is authoritative for pax).

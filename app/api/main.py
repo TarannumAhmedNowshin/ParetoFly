@@ -20,6 +20,7 @@ from sse_starlette.sse import EventSourceResponse
 from app.config import get_settings
 from app.graph import build_graph
 from app.graph.state import GraphState
+from app.logging_config import bind_session, get_logger
 from app.models.schemas import Recommendation, TripQuery
 from app.reporting import is_valid_session_id, report_path, save_report
 
@@ -36,6 +37,7 @@ app.add_middleware(
 
 # Compile the graph once at import time and reuse it across requests.
 _graph = build_graph()
+_log = get_logger("api")
 
 
 def _serialize(state: GraphState, session_id: str | None = None) -> dict[str, Any]:
@@ -55,9 +57,10 @@ def _persist_report(session_id: str, state: GraphState) -> None:
     if query is None:
         return
     try:
-        save_report(session_id, query, state.get("recommendations", []) or [])
+        path = save_report(session_id, query, state.get("recommendations", []) or [])
+        _log.info("session %s: report saved -> %s", session_id, path)
     except Exception:  # pragma: no cover - report persistence must not break search
-        pass
+        _log.exception("session %s: report save failed", session_id)
 
 
 @app.get("/health")
@@ -70,10 +73,21 @@ async def search(query: TripQuery) -> dict[str, Any]:
     """Run the pipeline, save a downloadable report, return recommendations."""
 
     session_id = uuid4().hex
-    initial: GraphState = {"query": query, "log": []}
-    state = await _graph.ainvoke(initial)
-    _persist_report(session_id, state)
-    return _serialize(state, session_id)
+    with bind_session(session_id):
+        _log.info(
+            "POST /search %s->%s depart=%s adults=%s children=%s infants=%s cabin=%s currency=%s",
+            query.origin, query.destination, query.depart_date, query.adults,
+            query.children, query.infants, query.cabin.value, query.currency,
+        )
+        initial: GraphState = {"query": query, "log": [], "session_id": session_id}
+        state = await _graph.ainvoke(initial)
+        _persist_report(session_id, state)
+        result = _serialize(state, session_id)
+        _log.info(
+            "session %s: /search done error=%s recommendations=%d",
+            session_id, result.get("error"), len(result.get("recommendations", [])),
+        )
+        return result
 
 
 @app.post("/search/stream")
@@ -81,18 +95,29 @@ async def search_stream(query: TripQuery) -> EventSourceResponse:
     """Stream node progress, then a terminal ``result`` event."""
 
     session_id = uuid4().hex
-    initial: GraphState = {"query": query, "log": []}
+    initial: GraphState = {"query": query, "log": [], "session_id": session_id}
 
     async def event_generator():
-        final: GraphState = {"query": query}
-        async for chunk in _graph.astream(initial):
-            for node_name, update in chunk.items():
-                final.update(update)
-                log = update.get("log")
-                message = log[-1] if log else node_name
-                yield {"event": "progress", "data": json.dumps({"node": node_name, "message": message})}
-        _persist_report(session_id, final)
-        yield {"event": "result", "data": json.dumps(_serialize(final, session_id))}
+        with bind_session(session_id):
+            _log.info(
+                "POST /search/stream %s->%s depart=%s cabin=%s currency=%s",
+                query.origin, query.destination, query.depart_date,
+                query.cabin.value, query.currency,
+            )
+            final: GraphState = {"query": query, "session_id": session_id}
+            async for chunk in _graph.astream(initial):
+                for node_name, update in chunk.items():
+                    final.update(update)
+                    log = update.get("log")
+                    message = log[-1] if log else node_name
+                    _log.debug("session %s: node %s -> %s", session_id, node_name, message)
+                    yield {"event": "progress", "data": json.dumps({"node": node_name, "message": message})}
+            _persist_report(session_id, final)
+            _log.info(
+                "session %s: /search/stream done error=%s recommendations=%d",
+                session_id, final.get("error"), len(final.get("recommendations", []) or []),
+            )
+            yield {"event": "result", "data": json.dumps(_serialize(final, session_id))}
 
     return EventSourceResponse(event_generator())
 
@@ -105,6 +130,7 @@ def download_report(session_id: str) -> FileResponse:
         raise HTTPException(status_code=400, detail="Invalid session id")
     path = report_path(session_id)
     if not path.exists():
+        _log.warning("GET /report/%s: not found", session_id)
         raise HTTPException(status_code=404, detail="Report not found")
     filename = f"{session_id}_report.md"
     return FileResponse(

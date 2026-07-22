@@ -13,11 +13,14 @@ from typing import Optional
 import httpx
 
 from app.config import Settings, get_settings
+from app.logging_config import get_logger
 from app.models.schemas import FlightOffer
 from app.tools.kb_cache import KnowledgeCache, kb_key
 
 _MEM: dict[tuple[str, str], float] = {}
 _CACHE: Optional[KnowledgeCache] = None
+
+log = get_logger("tools.fx")
 
 
 def _cache() -> KnowledgeCache:
@@ -54,14 +57,17 @@ def get_fx_rate(base: str, target: str, *, settings: Optional[Settings] = None) 
         resp = httpx.get(f"{settings.fx_api_base}/{base}", timeout=settings.web_search_timeout)
         resp.raise_for_status()
         rate = (resp.json().get("rates") or {}).get(target)
-    except Exception:  # pragma: no cover - network failure -> no conversion
+    except Exception as exc:  # pragma: no cover - network failure -> no conversion
+        log.warning("fx: rate lookup %s->%s failed (%s)", base, target, exc)
         return None
 
     if not rate or rate <= 0:
+        log.warning("fx: no rate for %s->%s in API response", base, target)
         return None
     rate = float(rate)
     _cache().set(disk_key, {"rate": rate})
     _MEM[key] = rate
+    log.info("fx: %s->%s = %.4f (live)", base, target, rate)
     return rate
 
 

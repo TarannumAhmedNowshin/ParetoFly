@@ -162,6 +162,9 @@ report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
 # Generated per-search downloadable reports
 reports/
 
+# Per-session run logs (keep the folder, ignore the log files)
+logs/*.log
+
 # ============================================================
 # Editors / IDEs / OS
 # ============================================================

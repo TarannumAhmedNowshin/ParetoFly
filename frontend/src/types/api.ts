@@ -49,6 +49,7 @@ export interface TripQuery {
   preferred_airlines?: string[];
   excluded_airlines?: string[];
   is_student?: boolean;
+  eco_friendly?: boolean;
   currency: string;
   free_text?: string | null;
   persona?: Persona | null;

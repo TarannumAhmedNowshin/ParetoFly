@@ -14,9 +14,12 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from app.config import get_settings
+from app.logging_config import get_logger
 from app.models.schemas import FlightOffer, Recommendation, TripQuery
 
 _SESSION_ID_RE = re.compile(r"^[a-f0-9]{8,64}$")
+
+log = get_logger("reporting")
 
 # Human-friendly labels for the price-breakdown table rows.
 _BREAKDOWN_LABELS = {
@@ -149,6 +152,28 @@ def _baggage_lines(offer: FlightOffer) -> list[str]:
     return lines
 
 
+def _shorten(text: str, limit: int = 140) -> str:
+    collapsed = " ".join(text.split())
+    return collapsed if len(collapsed) <= limit else collapsed[: limit - 1].rstrip() + "\u2026"
+
+
+def _provenance_lines(offer: FlightOffer) -> list[str]:
+    """Show where each applied discount came from so users can judge reliability."""
+
+    lines: list[str] = []
+    if offer.student_discount_amount and (offer.student_discount_source or offer.student_discount_evidence):
+        src = offer.student_discount_source or "web"
+        quote = f" \u2014 \u201c{_shorten(offer.student_discount_evidence)}\u201d" if offer.student_discount_evidence else ""
+        lines.append(f"- **Student discount source:** {src}{quote}")
+    if offer.site_discount_amount and (
+        offer.site_discount_source or offer.site_discount_source_url or offer.site_discount_evidence
+    ):
+        src = offer.site_discount_source or offer.site_discount_source_url or "web"
+        quote = f" \u2014 \u201c{_shorten(offer.site_discount_evidence)}\u201d" if offer.site_discount_evidence else ""
+        lines.append(f"- **Booking-site discount source:** {src}{quote}")
+    return lines
+
+
 def _recommendation_section(rec: Recommendation) -> list[str]:
     offer = rec.scored.offer
     lines = [
@@ -177,6 +202,7 @@ def _recommendation_section(rec: Recommendation) -> list[str]:
         )
         lines.append(f"- **Layovers:** {lay}")
     lines += _baggage_lines(offer)
+    lines += _provenance_lines(offer)
     lines.append(f"- **Score:** {rec.scored.total_score:.3f}")
 
     lines += _breakdown_table(offer)
@@ -240,4 +266,5 @@ def save_report(
     markdown = build_report_markdown(session_id, query, recommendations)
     path = report_path(session_id)
     path.write_text(markdown, encoding="utf-8")
+    log.info("report written: %s (%d recommendations)", path, len(recommendations))
     return path

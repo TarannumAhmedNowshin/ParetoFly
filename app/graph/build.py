@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from uuid import uuid4
+
 from langgraph.graph import END, START, StateGraph
 
 from app.graph.nodes import (
@@ -15,6 +17,7 @@ from app.graph.nodes import (
     search_node,
 )
 from app.graph.state import GraphState
+from app.logging_config import bind_session
 from app.models.schemas import TripQuery
 
 
@@ -56,5 +59,7 @@ def run_pipeline(query: TripQuery) -> GraphState:
     """Convenience helper: run the full pipeline for a query and return final state."""
 
     app = build_graph()
-    initial: GraphState = {"query": query, "log": []}
-    return app.invoke(initial)
+    session_id = uuid4().hex
+    with bind_session(session_id):
+        initial: GraphState = {"query": query, "log": [], "session_id": session_id}
+        return app.invoke(initial)

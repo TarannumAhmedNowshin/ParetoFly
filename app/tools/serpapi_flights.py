@@ -19,10 +19,13 @@ from typing import Any, Optional
 import httpx
 
 from app.config import Settings, get_settings
+from app.logging_config import get_logger
 from app.models.schemas import FlightOffer, FlightSegment, Layover, TripQuery
 from app.tools.flight_cache import FlightCache, cache_key
 
 _DELAY_FLAG = "often_delayed_by_over_30_min"
+
+log = get_logger("tools.serpapi")
 
 
 def _redact(text: str) -> str:
@@ -138,6 +141,13 @@ def _extract_offers(payload: dict[str, Any], currency: str) -> list[FlightOffer]
     for raw in raw_offers:
         if not raw.get("flights"):
             continue
+        price = raw.get("price")
+        if not isinstance(price, (int, float)) or price <= 0:
+            # Google Flights omits the price for unbookable/unavailable fares.
+            # A 0 price would masquerade as the cheapest option, so skip it.
+            airline = (raw["flights"][0] or {}).get("airline", "Unknown")
+            log.debug("serpapi: skipping offer with missing/zero price (airline=%s)", airline)
+            continue
         raw["_currency"] = currency
         offers.append(_offer_from_json(raw))
     return offers
@@ -171,10 +181,20 @@ def search_flights(
         key = cache_key(query)
         cached = cache.get(key)
         if cached is not None:
+            log.info(
+                "serpapi: CACHE HIT %s->%s %s (%d offers, key=%s)",
+                query.origin, query.destination, query.depart_date, len(cached), key,
+            )
             return cached
 
     params = _build_params(query, settings)
     result_currency = query.currency
+    log.info(
+        "serpapi: live request %s->%s depart=%s currency=%s cabin=%s type=%s (cache_%s)",
+        query.origin, query.destination, query.depart_date, query.currency,
+        query.cabin.serpapi_code, params.get("type"),
+        "miss" if caching else "off",
+    )
 
     owns_client = client is None
     client = client or httpx.Client(timeout=timeout)
@@ -187,6 +207,9 @@ def search_flights(
             # Google Flights rejects some currencies (e.g. BDT) with HTTP 400.
             # Retry once in USD so the traveler still gets fares instead of nothing.
             if exc.response.status_code == 400 and query.currency.upper() != "USD":
+                log.warning(
+                    "serpapi: HTTP 400 for currency=%s, retrying in USD", query.currency,
+                )
                 params["currency"] = "USD"
                 result_currency = "USD"
                 response = client.get(settings.serpapi_base_url, params=params)
@@ -195,15 +218,19 @@ def search_flights(
             else:
                 raise
     except httpx.HTTPError as exc:
+        log.error("serpapi: request failed: %s", _redact(str(exc)))
         raise SerpApiError(f"SerpAPI request failed: {_redact(str(exc))}") from exc
     finally:
         if owns_client:
             client.close()
 
     if payload.get("error"):
+        log.error("serpapi: API error payload: %s", _redact(str(payload["error"])))
         raise SerpApiError(_redact(str(payload["error"])))
 
     offers = _extract_offers(payload, result_currency)
+    log.info("serpapi: parsed %d offers (currency=%s)", len(offers), result_currency)
     if cache is not None and offers:
         cache.set(key, offers)
+        log.debug("serpapi: cached %d offers under key=%s", len(offers), key)
     return offers

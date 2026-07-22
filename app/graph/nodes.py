@@ -11,24 +11,40 @@ from app.graph.state import GraphState
 from app.enrichment import enrich_true_prices
 from app.llm.explain import write_explanations
 from app.llm.intake import parse_free_text
+from app.logging_config import get_logger, set_session
 from app.models.schemas import Recommendation, ScoredFlight, TripQuery
 from app.scoring import diversity_top_k, infer_persona, score_offers
 from app.tools import SerpApiError, search_flights
+
+log = get_logger("graph")
 
 
 def _log(state: GraphState, message: str) -> list[str]:
     return [*state.get("log", []), message]
 
 
+def _bind(state: GraphState) -> None:
+    """Re-bind the session on the current thread (LangGraph may run nodes off-thread)."""
+
+    set_session(state.get("session_id"))
+
+
 def intake_node(state: GraphState) -> GraphState:
     """Validate the query and parse the free-text box into structured signals."""
 
+    _bind(state)
     query: TripQuery = state["query"]
     query.signals = parse_free_text(query)
     # Auto-select a persona (drives default weights) unless the caller set one.
     if query.persona is None:
         query.persona = infer_persona(query)
     persona_note = f" [persona={query.persona}]" if query.persona else ""
+    log.info(
+        "intake: %s->%s on %s persona=%s free_text=%r",
+        query.origin, query.destination, query.depart_date, query.persona,
+        (query.free_text or "").strip(),
+    )
+    log.debug("intake: parsed signals=%s", query.signals.model_dump(exclude_defaults=True))
     return {
         "query": query,
         "log": _log(state, f"intake: {query.origin}->{query.destination} on {query.depart_date}{persona_note}"),
@@ -38,21 +54,33 @@ def intake_node(state: GraphState) -> GraphState:
 def search_node(state: GraphState) -> GraphState:
     """Fetch raw offers from the flight source."""
 
+    _bind(state)
     query: TripQuery = state["query"]
     try:
         offers = search_flights(query)
     except SerpApiError as exc:
+        log.error("search: FAILED (%s)", exc)
         return {"error": str(exc), "log": _log(state, f"search: FAILED ({exc})")}
+    log.info("search: %d offers returned", len(offers))
     return {"offers": offers, "log": _log(state, f"search: {len(offers)} offers")}
 
 
 def score_node(state: GraphState) -> GraphState:
     """Apply the multi-criteria scoring model."""
 
+    _bind(state)
     offers = state.get("offers", [])
     if not offers:
+        log.info("score: no offers to score")
         return {"scored": [], "log": _log(state, "score: no offers to score")}
     scored = score_offers(offers, state["query"])
+    if scored:
+        top = scored[0]
+        log.debug(
+            "score: best offer id=%s total=%.3f features=%s",
+            top.offer.id, top.total_score, top.feature_scores,
+        )
+    log.info("score: scored %d offers", len(scored))
     return {"scored": scored, "log": _log(state, f"score: scored {len(scored)} offers")}
 
 
@@ -61,6 +89,7 @@ def enrich_node(state: GraphState) -> GraphState:
 
     from app.tools.web_knowledge import last_status, reset_status
 
+    _bind(state)
     offers = state.get("offers", [])
     reset_status()
     adjusted = enrich_true_prices(offers, state["query"])
@@ -71,15 +100,28 @@ def enrich_node(state: GraphState) -> GraphState:
         note = f" [via {status.provider} fallback]"
     else:
         note = ""
+    log.info(
+        "enrich: adjusted %d true prices (provider=%s all_failed=%s)",
+        adjusted, status.provider, status.all_failed,
+    )
     return {"offers": offers, "log": _log(state, f"enrich: adjusted {adjusted} true prices{note}")}
 
 
 def rank_node(state: GraphState) -> GraphState:
     """Pick a diverse top-3."""
 
+    _bind(state)
     scored = state.get("scored", [])
     top = diversity_top_k(scored, k=3)
     recs = [Recommendation(rank=i + 1, scored=s) for i, s in enumerate(top)]
+    for rec in recs:
+        o = rec.scored.offer
+        log.debug(
+            "rank #%d: %s %s %.0f score=%.3f stops=%d",
+            rec.rank, ",".join(o.airlines), o.currency, o.effective_price,
+            rec.scored.total_score, o.stops,
+        )
+    log.info("rank: selected top %d of %d", len(recs), len(scored))
     return {"recommendations": recs, "log": _log(state, f"rank: selected top {len(recs)}")}
 
 
@@ -89,17 +131,21 @@ def convert_node(state: GraphState) -> GraphState:
 
     from app.tools.fx import convert_offers, get_fx_rate
 
+    _bind(state)
     offers = state.get("offers", [])
     query: TripQuery = state["query"]
     if not offers:
+        log.info("convert: no offers")
         return {"log": _log(state, "convert: no offers")}
     src = offers[0].currency
     if src == query.currency:
         return {"offers": offers}
     rate = get_fx_rate(src, query.currency)
     if rate is None:
+        log.warning("convert: FX unavailable %s->%s, kept %s", src, query.currency, src)
         return {"offers": offers, "log": _log(state, f"convert: FX unavailable, kept {src}")}
     convert_offers(offers, query.currency, rate)
+    log.info("convert: %s->%s @ %.4f", src, query.currency, rate)
     return {"offers": offers, "log": _log(state, f"convert: {src}->{query.currency} @ {rate:.4f}")}
 
 
@@ -185,6 +231,7 @@ def explain_node(state: GraphState) -> GraphState:
     the rule-based version on any failure).
     """
 
+    _bind(state)
     recs = state.get("recommendations", [])
     for rec in recs:
         pros, cons = _rule_based_reasons(rec, recs, state["query"])
@@ -202,10 +249,13 @@ def explain_node(state: GraphState) -> GraphState:
 
     used_llm = write_explanations(recs, state["query"])
     how = "LLM" if used_llm else "rule-based"
+    log.info("explain: attached reasons to %d recs (%s)", len(recs), how)
     return {"recommendations": recs, "log": _log(state, f"explain: attached reasons ({how})")}
 
 
 def present_node(state: GraphState) -> GraphState:
     """Terminal node (placeholder for streaming to a UI)."""
 
+    _bind(state)
+    log.info("present: pipeline complete (%d recommendations)", len(state.get("recommendations", []) or []))
     return {"log": _log(state, "present: done")}

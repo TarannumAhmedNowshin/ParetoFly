@@ -201,6 +201,29 @@ def _resolve_weights(query: TripQuery) -> Weights:
     return query.weights
 
 
+_ECO_CARBON_WEIGHT = 0.18  # carbon's share when the traveler opts into eco ranking
+
+
+def _apply_eco_preference(weights: Weights, eco: bool) -> Weights:
+    """Turn carbon on/off as a ranking factor without changing the total weight.
+
+    Off (default): carbon weight is set to 0 and redistributed to the other
+    features, so emissions never influence the ranking. On: carbon is raised to
+    a meaningful share, taken proportionally from the other features.
+    """
+
+    data = weights.model_dump()
+    target_carbon = _ECO_CARBON_WEIGHT if eco else 0.0
+    delta = target_carbon - data["carbon"]
+    others = [k for k in data if k != "carbon"]
+    others_sum = sum(data[k] for k in others)
+    if others_sum > 0:
+        for k in others:
+            data[k] = max(0.0, data[k] - delta * (data[k] / others_sum))
+    data["carbon"] = target_carbon
+    return Weights(**data)
+
+
 def score_offers(offers: list[FlightOffer], query: TripQuery) -> list[ScoredFlight]:
     """Score and rank offers; returns a list sorted by descending total score."""
 
@@ -208,6 +231,7 @@ def score_offers(offers: list[FlightOffer], query: TripQuery) -> list[ScoredFlig
         return []
 
     weights = _resolve_weights(query)
+    weights = _apply_eco_preference(weights, query.eco_friendly)
 
     price_norm = _min_max_lower_better([o.effective_price for o in offers])
     duration_norm = _min_max_lower_better([float(o.total_duration_minutes) for o in offers])

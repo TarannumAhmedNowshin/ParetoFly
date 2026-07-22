@@ -9,6 +9,7 @@ import pytest
 from app.models.schemas import ParsedSignals, TripQuery
 from app.scoring.model import (
     PERSONA_WEIGHTS,
+    _apply_eco_preference,
     _arrival_fit_score,
     _layover_score,
     _luggage_fit_score,
@@ -156,6 +157,36 @@ def test_all_weight_presets_sum_to_one():
     for name, w in presets.items():
         total = sum(getattr(w, f) for f in fields)
         assert total == pytest.approx(1.0), f"{name} weights sum to {total}"
+
+
+_WEIGHT_FIELDS = (
+    "price", "duration", "stops", "layover_quality", "arrival_fit",
+    "reliability", "aircraft_match", "carbon", "luggage_fit",
+)
+
+
+def test_eco_off_zeroes_carbon_and_preserves_total():
+    out = _apply_eco_preference(Weights(), eco=False)
+    assert out.carbon == 0.0
+    assert sum(getattr(out, f) for f in _WEIGHT_FIELDS) == pytest.approx(1.0)
+
+
+def test_eco_on_makes_carbon_meaningful_and_preserves_total():
+    out = _apply_eco_preference(Weights(), eco=True)
+    assert out.carbon > Weights().carbon
+    assert sum(getattr(out, f) for f in _WEIGHT_FIELDS) == pytest.approx(1.0)
+
+
+def test_eco_toggle_changes_carbon_contribution_in_scoring():
+    base = _base_query()
+    eco = _base_query(eco_friendly=True)
+    offers = make_offers()
+    off = {s.offer.id: s for s in score_offers(offers, base)}
+    on = {s.offer.id: s for s in score_offers(offers, eco)}
+    # With eco off, carbon contributes nothing; with eco on it does for some offer.
+    assert all(s.feature_scores["carbon"] == 0.0 for s in off.values())
+    assert any(s.feature_scores["carbon"] > 0.0 for s in on.values())
+
 
 
 def test_layover_hard_limit_zeroes_feature():

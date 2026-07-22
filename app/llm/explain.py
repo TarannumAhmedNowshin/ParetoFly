@@ -5,7 +5,10 @@ from __future__ import annotations
 from pydantic import BaseModel, Field
 
 from app.llm.azure_client import get_full_llm
+from app.logging_config import get_logger
 from app.models.schemas import Recommendation, TripQuery
+
+log = get_logger("llm.explain")
 
 
 class _FlightExplanation(BaseModel):
@@ -103,7 +106,8 @@ def write_explanations(recs: list[Recommendation], query: TripQuery) -> bool:
     try:
         llm = get_full_llm().with_structured_output(_ExplanationSet)
         result: _ExplanationSet = llm.invoke([("system", _SYSTEM), ("human", prompt)])
-    except Exception:  # pragma: no cover - network/parse failure -> caller fallback
+    except Exception as exc:  # pragma: no cover - network/parse failure -> caller fallback
+        log.warning("explain: LLM call failed (%s); keeping rule-based reasons", exc)
         return False
 
     by_rank = {item.rank: item for item in result.items}

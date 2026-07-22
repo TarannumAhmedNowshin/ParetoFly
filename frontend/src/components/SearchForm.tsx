@@ -3,6 +3,7 @@
 import { useState } from "react";
 import type { CabinClass, Persona, TripQuery } from "@/types/api";
 import AirportSelect from "@/components/AirportSelect";
+import DatePicker from "@/components/DatePicker";
 import { findAirport } from "@/lib/airports";
 
 const CABIN_OPTIONS: { value: CabinClass; label: string }[] = [
@@ -70,6 +71,7 @@ const inputClass =
 const labelClass = "flex flex-col gap-1 text-xs font-medium text-slate-500";
 
 export default function SearchForm({ onSearch, disabled }: Props) {
+  const [tripType, setTripType] = useState<"round_trip" | "one_way">("round_trip");
   const [origin, setOrigin] = useState("");
   const [destination, setDestination] = useState("");
   const [departDate, setDepartDate] = useState("");
@@ -87,6 +89,7 @@ export default function SearchForm({ onSearch, disabled }: Props) {
   const [persona, setPersona] = useState<Persona | "">("");
   const [isStudent, setIsStudent] = useState(false);
   const [carryOnOnly, setCarryOnOnly] = useState(false);
+  const [ecoFriendly, setEcoFriendly] = useState(false);
   const [arriveStart, setArriveStart] = useState("");
   const [arriveEnd, setArriveEnd] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -105,6 +108,10 @@ export default function SearchForm({ onSearch, disabled }: Props) {
     }
     if (!departDate) {
       setError("Please choose a departure date.");
+      return;
+    }
+    if (tripType === "round_trip" && !returnDate) {
+      setError("Please choose a return date, or switch to one-way.");
       return;
     }
     if (returnDate && returnDate < departDate) {
@@ -127,7 +134,7 @@ export default function SearchForm({ onSearch, disabled }: Props) {
       origin,
       destination,
       depart_date: departDate,
-      return_date: returnDate || null,
+      return_date: tripType === "round_trip" ? returnDate || null : null,
       adults,
       children,
       infants,
@@ -138,6 +145,7 @@ export default function SearchForm({ onSearch, disabled }: Props) {
       max_stops: maxStops === "" ? null : Number(maxStops),
       max_layover_minutes: maxLayover === "" ? null : Number(maxLayover),
       is_student: isStudent,
+      eco_friendly: ecoFriendly,
       persona: persona || null,
     };
     onSearch(query);
@@ -148,6 +156,76 @@ export default function SearchForm({ onSearch, disabled }: Props) {
       onSubmit={handleSubmit}
       className="flex flex-col gap-5 rounded-2xl border border-slate-200 bg-white/80 p-6 shadow-sm backdrop-blur"
     >
+      <div
+        role="radiogroup"
+        aria-label="Trip type"
+        className="inline-flex self-start rounded-lg border border-slate-300 bg-slate-100 p-0.5"
+      >
+        {([
+          { value: "round_trip", label: "Round trip" },
+          { value: "one_way", label: "One way" },
+        ] as const).map((opt) => (
+          <button
+            key={opt.value}
+            type="button"
+            role="radio"
+            aria-checked={tripType === opt.value}
+            onClick={() => setTripType(opt.value)}
+            disabled={disabled}
+            className={`rounded-md px-4 py-1.5 text-sm font-medium transition-colors disabled:opacity-40 ${
+              tripType === opt.value
+                ? "bg-white text-indigo-600 shadow-sm"
+                : "text-slate-500 hover:text-slate-900"
+            }`}
+          >
+            {opt.label}
+          </button>
+        ))}
+      </div>
+
+      <div className="flex items-center justify-between gap-4 rounded-xl border border-slate-200 bg-white px-4 py-3">
+        <div className="flex flex-col">
+          <span className="flex items-center gap-2 text-sm font-medium text-slate-900">
+            <svg
+              className={`h-4 w-4 ${ecoFriendly ? "text-emerald-600" : "text-slate-400"}`}
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden="true"
+            >
+              <path d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8 0 5.5-4.78 10-10 10Z" />
+              <path d="M2 21c0-3 1.85-5.36 5.08-6" />
+            </svg>
+            Eco-friendly flight
+          </span>
+          <span className="mt-0.5 text-xs text-slate-400">
+            {ecoFriendly
+              ? "Lower-emission flights are favored in ranking."
+              : "Carbon emissions are ignored unless enabled."}
+          </span>
+        </div>
+        <button
+          type="button"
+          role="switch"
+          aria-checked={ecoFriendly}
+          aria-label="Eco-friendly flight"
+          onClick={() => setEcoFriendly((v) => !v)}
+          disabled={disabled}
+          className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors disabled:opacity-40 ${
+            ecoFriendly ? "bg-emerald-500" : "bg-slate-300"
+          }`}
+        >
+          <span
+            className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform ${
+              ecoFriendly ? "translate-x-5" : "translate-x-0.5"
+            }`}
+          />
+        </button>
+      </div>
+
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <AirportSelect
           label="From"
@@ -163,27 +241,22 @@ export default function SearchForm({ onSearch, disabled }: Props) {
           placeholder="City or airport, e.g. Los Angeles"
           disabled={disabled}
         />
-        <label className={labelClass}>
-          Departure
-          <input
-            type="date"
-            className={inputClass}
-            value={departDate}
-            onChange={(e) => setDepartDate(e.target.value)}
-            disabled={disabled}
-          />
-        </label>
-        <label className={labelClass}>
-          Return (optional)
-          <input
-            type="date"
-            className={inputClass}
+        <DatePicker
+          label="Departure"
+          value={departDate}
+          onChange={setDepartDate}
+          disabled={disabled}
+          className={tripType === "one_way" ? "sm:col-span-2" : ""}
+        />
+        {tripType === "round_trip" && (
+          <DatePicker
+            label="Return"
             value={returnDate}
+            onChange={setReturnDate}
             min={departDate || undefined}
-            onChange={(e) => setReturnDate(e.target.value)}
             disabled={disabled}
           />
-        </label>
+        )}
       </div>
 
       <div className="grid grid-cols-3 gap-3">

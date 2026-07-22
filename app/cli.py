@@ -20,6 +20,7 @@ if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 
 from app.config import get_settings
+from app.logging_config import bind_session
 from app.models import CabinClass, TripQuery
 from app.tools import SerpApiError, search_flights
 from app.graph import run_pipeline
@@ -120,8 +121,11 @@ def main(argv: list[str] | None = None) -> int:
         state = run_pipeline(query)
         _print_recommendations(state)
     elif args.search:
+        from uuid import uuid4
+
         try:
-            offers = search_flights(query)
+            with bind_session(uuid4().hex):
+                offers = search_flights(query)
         except SerpApiError as exc:
             print(f"\n[error] {exc}")
             return 1

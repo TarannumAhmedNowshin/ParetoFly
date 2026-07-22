@@ -7,6 +7,7 @@ from datetime import date
 import app.enrichment as enrichment
 from app.enrichment import _AirlineFacts
 from app.models.schemas import ParsedSignals, TripQuery
+from app.tools.web_knowledge import WebSnippet
 from tests.conftest import make_offers
 
 
@@ -202,4 +203,57 @@ def test_airline_facts_uses_cache(monkeypatch):
     b = enrichment._airline_facts("Qatar Airways", "economy", "USD")
     assert a.checked_bag_fee == 33.0 and b.checked_bag_fee == 33.0
     assert calls["n"] == 1  # second call served from memory
+
+
+def test_verify_accepts_official_single_source():
+    docs = [WebSnippet("Student Club: save 10% on your first flight", "https://www.qatarairways.com/en/student-club.html")]
+    facts = _AirlineFacts(
+        student_discount_percent=10.0,
+        student_discount_evidence="save 10% on your first flight",
+        student_discount_support=[1],
+        student_discount_confidence=0.9,
+    )
+    out = enrichment._verify(facts, docs, "Qatar Airways")
+    assert out.student_discount_percent == 10.0
+    assert out.student_discount_source_domain == "qatarairways.com"
+
+
+def test_verify_drops_uncorroborated_non_official():
+    docs = [WebSnippet("A blog claims EgyptAir gives a 15% student discount", "https://randomblog.example/x")]
+    facts = _AirlineFacts(
+        student_discount_percent=15.0,
+        student_discount_evidence="EgyptAir gives a 15% student discount",
+        student_discount_support=[1],
+        student_discount_confidence=0.9,
+    )
+    out = enrichment._verify(facts, docs, "EgyptAir")
+    assert out.student_discount_percent is None
+
+
+def test_verify_accepts_two_distinct_sources():
+    docs = [
+        WebSnippet("Site A: EgyptAir student fares are 12% off", "https://a.example/x"),
+        WebSnippet("Site B: EgyptAir student discount of 12%", "https://b.example/y"),
+    ]
+    facts = _AirlineFacts(
+        student_discount_percent=12.0,
+        student_discount_evidence="EgyptAir student fares are 12% off",
+        student_discount_support=[1, 2],
+        student_discount_confidence=0.9,
+    )
+    out = enrichment._verify(facts, docs, "EgyptAir")
+    assert out.student_discount_percent == 12.0
+
+
+def test_verify_drops_low_confidence_even_when_official():
+    docs = [WebSnippet("Student discount 10% first flight", "https://www.qatarairways.com/x")]
+    facts = _AirlineFacts(
+        student_discount_percent=10.0,
+        student_discount_evidence="Student discount 10% first flight",
+        student_discount_support=[1],
+        student_discount_confidence=0.3,
+    )
+    out = enrichment._verify(facts, docs, "Qatar Airways")
+    assert out.student_discount_percent is None
+
 
