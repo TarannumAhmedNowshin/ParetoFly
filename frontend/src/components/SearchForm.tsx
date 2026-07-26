@@ -91,6 +91,17 @@ const inputClass =
   "rounded-xl border border-slate-200 bg-white/90 px-3.5 py-2.5 text-sm text-slate-900 shadow-sm transition-colors focus:border-indigo-400 focus:outline-none focus:ring-4 focus:ring-indigo-500/10 hover:border-slate-300";
 const labelClass = "flex flex-col gap-1.5 text-xs font-medium text-slate-500";
 
+function SectionLabel({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="mt-1 flex items-center gap-3">
+      <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">
+        {children}
+      </span>
+      <span className="h-px flex-1 bg-slate-200/70" />
+    </div>
+  );
+}
+
 export default function SearchForm({ onSearch, disabled }: Props) {
   const [tripType, setTripType] = useState<"round_trip" | "one_way">("round_trip");
   const [origin, setOrigin] = useState("");
@@ -204,48 +215,7 @@ export default function SearchForm({ onSearch, disabled }: Props) {
         ))}
       </div>
 
-      <div className="flex items-center justify-between gap-4 rounded-xl border border-slate-200 bg-linear-to-r from-emerald-50/60 to-white px-4 py-3.5">
-        <div className="flex flex-col">
-          <span className="flex items-center gap-2 text-sm font-medium text-slate-900">
-            <svg
-              className={`h-4 w-4 ${ecoFriendly ? "text-emerald-600" : "text-slate-400"}`}
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              aria-hidden="true"
-            >
-              <path d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8 0 5.5-4.78 10-10 10Z" />
-              <path d="M2 21c0-3 1.85-5.36 5.08-6" />
-            </svg>
-            Eco-friendly flight
-          </span>
-          <span className="mt-0.5 text-xs text-slate-400">
-            {ecoFriendly
-              ? "Lower-emission flights are favored in ranking."
-              : "Carbon emissions are ignored unless enabled."}
-          </span>
-        </div>
-        <button
-          type="button"
-          role="switch"
-          aria-checked={ecoFriendly}
-          aria-label="Eco-friendly flight"
-          onClick={() => setEcoFriendly((v) => !v)}
-          disabled={disabled}
-          className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors disabled:opacity-40 ${
-            ecoFriendly ? "bg-emerald-500" : "bg-slate-300"
-          }`}
-        >
-          <span
-            className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform ${
-              ecoFriendly ? "translate-x-5" : "translate-x-0.5"
-            }`}
-          />
-        </button>
-      </div>
+      <SectionLabel>Where &amp; when</SectionLabel>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <AirportSelect
@@ -280,6 +250,8 @@ export default function SearchForm({ onSearch, disabled }: Props) {
         )}
       </div>
 
+      <SectionLabel>Who&apos;s travelling</SectionLabel>
+
       <div className="grid grid-cols-3 gap-3">
         <Stepper label="Adults" value={adults} min={1} onChange={setAdults} disabled={disabled} />
         <Stepper label="Children" value={children} min={0} onChange={setChildren} disabled={disabled} />
@@ -305,6 +277,8 @@ export default function SearchForm({ onSearch, disabled }: Props) {
         <CurrencySelect value={currency} onChange={setCurrency} disabled={disabled} />
       </div>
 
+      <SectionLabel>Your preferences</SectionLabel>
+
       <label className={labelClass}>
         Tell us about your trip
         <textarea
@@ -315,6 +289,45 @@ export default function SearchForm({ onSearch, disabled }: Props) {
           disabled={disabled}
         />
       </label>
+
+      <div className="flex items-center justify-between gap-4 rounded-xl border border-slate-200 bg-linear-to-r from-emerald-50/60 to-white px-4 py-3">
+        <span className="flex items-center gap-2 text-sm font-medium text-slate-900">
+          <svg
+            className={`h-4 w-4 ${ecoFriendly ? "text-emerald-600" : "text-slate-400"}`}
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden="true"
+          >
+            <path d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8 0 5.5-4.78 10-10 10Z" />
+            <path d="M2 21c0-3 1.85-5.36 5.08-6" />
+          </svg>
+          Eco-friendly ranking
+          <span className="hidden text-xs font-normal text-slate-400 sm:inline">
+            {ecoFriendly ? "— lower-emission flights favored" : "— off by default"}
+          </span>
+        </span>
+        <button
+          type="button"
+          role="switch"
+          aria-checked={ecoFriendly}
+          aria-label="Eco-friendly flight"
+          onClick={() => setEcoFriendly((v) => !v)}
+          disabled={disabled}
+          className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors disabled:opacity-40 ${
+            ecoFriendly ? "bg-emerald-500" : "bg-slate-300"
+          }`}
+        >
+          <span
+            className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform ${
+              ecoFriendly ? "translate-x-5" : "translate-x-0.5"
+            }`}
+          />
+        </button>
+      </div>
 
       <button
         type="button"
