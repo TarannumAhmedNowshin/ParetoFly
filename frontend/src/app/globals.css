@@ -1,14 +1,16 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #0f172a;
+  /* Warm editorial paper + ink */
+  --background: #fafaf8;
+  --foreground: #1a1917;
 
-  /* Brand gradient stops */
-  --brand-500: #6366f1;
-  --brand-600: #4f46e5;
-  --brand-accent: #8b5cf6;
-  --brand-sky: #38bdf8;
+  /* Single restrained accent (deep, considered indigo — used sparingly) */
+  --accent: #4f46e5;
+  --accent-strong: #4338ca;
+  --accent-soft: #eef2ff;
+
+  --line: #e7e4dd;
 }
 
 @theme inline {
@@ -16,9 +18,10 @@
   --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+  --font-serif: var(--font-fraunces);
 
   /* Motion */
-  --animate-fade-up: fade-up 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
+  --animate-fade-up: fade-up 0.55s cubic-bezier(0.22, 1, 0.36, 1) both;
   --animate-fade-in: fade-in 0.4s ease both;
 }
 
@@ -47,57 +50,104 @@ html {
 }
 
 body {
-  background: var(--background);
+  background: transparent;
   color: var(--foreground);
   font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
 }
 
+/* Editorial serif display face */
+.font-serif {
+  font-family: var(--font-fraunces), Georgia, "Times New Roman", serif;
+}
+
 /* Text selection */
 ::selection {
-  background: color-mix(in srgb, var(--brand-500) 22%, transparent);
-  color: var(--brand-600);
+  background: color-mix(in srgb, var(--accent) 18%, transparent);
+  color: var(--accent-strong);
 }
 
 /* Refined, unobtrusive scrollbar */
 * {
   scrollbar-width: thin;
-  scrollbar-color: #cbd5e1 transparent;
+  scrollbar-color: #d6d2c8 transparent;
 }
 *::-webkit-scrollbar {
   width: 10px;
   height: 10px;
 }
 *::-webkit-scrollbar-thumb {
-  background: #cbd5e1;
+  background: #d6d2c8;
   border: 3px solid transparent;
   border-radius: 9999px;
   background-clip: content-box;
 }
 *::-webkit-scrollbar-thumb:hover {
-  background: #94a3b8;
+  background: #b6b1a7;
   background-clip: content-box;
 }
 
-/* Utility: brand gradient text */
-.text-gradient {
+/* Hairline divider used across sections */
+.rule {
+  height: 1px;
+  background: var(--line);
+}
+
+/* Loading skeleton with a subtle shimmer (disabled under reduced motion) */
+.skeleton {
+  position: relative;
+  overflow: hidden;
+  background: #efece6;
+}
+.skeleton::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
   background: linear-gradient(
-    120deg,
-    var(--brand-600),
-    var(--brand-accent) 55%,
-    var(--brand-sky)
+    90deg,
+    transparent,
+    color-mix(in srgb, #ffffff 65%, transparent),
+    transparent
   );
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
+  animation: shimmer 1.6s ease-in-out infinite;
+}
+
+@keyframes shimmer {
+  100% {
+    transform: translateX(100%);
+  }
 }
 
 /* Utility: soft glass surface */
 .glass {
-  background: color-mix(in srgb, #ffffff 78%, transparent);
+  background: color-mix(in srgb, #ffffff 80%, transparent);
   backdrop-filter: blur(16px) saturate(140%);
   -webkit-backdrop-filter: blur(16px) saturate(140%);
+}
+
+/* Ambient page backdrop: a calm paper tone with a faint technical grid.
+   Deliberately monochrome and static — no colored gradients or motion. */
+.app-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  background:
+    radial-gradient(1100px 560px at 50% -18%, #f1efe9 0%, transparent 60%),
+    var(--background);
+}
+
+.app-backdrop::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(to right, rgba(26, 25, 23, 0.03) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(26, 25, 23, 0.03) 1px, transparent 1px);
+  background-size: 72px 72px;
+  mask-image: radial-gradient(closest-side at 50% 14%, #000 0%, transparent 76%);
+  -webkit-mask-image: radial-gradient(closest-side at 50% 14%, #000 0%, transparent 76%);
 }
 
 @media (prefers-reduced-motion: reduce) {

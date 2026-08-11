@@ -44,7 +44,7 @@ export default function FeatureScores({
             </span>
             <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-slate-100">
               <div
-                className="h-full rounded-full bg-linear-to-r from-indigo-500 to-violet-400 transition-[width] duration-500"
+                className="h-full rounded-full bg-slate-800 transition-[width] duration-500"
                 style={{ width: `${pct}%` }}
               />
             </div>

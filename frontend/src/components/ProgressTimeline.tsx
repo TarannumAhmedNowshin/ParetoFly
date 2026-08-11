@@ -21,7 +21,7 @@ function stateFor(index: number, currentIndex: number, done: boolean): StageStat
 function Dot({ state }: { state: StageState }) {
   if (state === "complete") {
     return (
-      <span className="flex h-6 w-6 items-center justify-center rounded-full bg-emerald-500 text-white">
+      <span className="relative z-10 flex h-6 w-6 items-center justify-center rounded-full bg-[#1a1917] text-white">
         <svg viewBox="0 0 20 20" className="h-3.5 w-3.5" fill="currentColor">
           <path
             fillRule="evenodd"
@@ -34,39 +34,52 @@ function Dot({ state }: { state: StageState }) {
   }
   if (state === "active") {
     return (
-      <span className="flex h-6 w-6 items-center justify-center rounded-full border-2 border-indigo-500">
-        <span className="h-2.5 w-2.5 animate-ping rounded-full bg-indigo-500" />
+      <span className="relative z-10 flex h-6 w-6 items-center justify-center rounded-full border-2 border-[#4f46e5] bg-white">
+        <span className="h-2.5 w-2.5 animate-ping rounded-full bg-[#4f46e5]" />
+        <span className="absolute h-2 w-2 rounded-full bg-[#4f46e5]" />
       </span>
     );
   }
-  return <span className="h-6 w-6 rounded-full border-2 border-slate-200" />;
+  return (
+    <span className="relative z-10 h-6 w-6 rounded-full border-2 border-[#e7e4dd] bg-white" />
+  );
 }
 
 export default function ProgressTimeline({ currentNode, done }: Props) {
   const currentIndex = currentNode != null ? STAGE_ORDER[currentNode] ?? 0 : 0;
 
   return (
-    <ol className="flex animate-fade-up flex-col gap-4 rounded-3xl border border-white/60 bg-white/70 p-6 shadow-xl shadow-slate-900/5 ring-1 ring-slate-900/5 backdrop-blur-xl">
-      {PIPELINE_STAGES.map((stage, i) => {
-        const state = stateFor(i, currentIndex, done);
-        return (
-          <li key={stage.node} className="flex items-start gap-3">
-            <Dot state={state} />
-            <div className="flex flex-col">
-              <span
-                className={
-                  state === "pending"
-                    ? "text-sm font-medium text-slate-400"
-                    : "text-sm font-semibold text-slate-900"
-                }
-              >
-                {stage.label}
-              </span>
-              <span className="text-xs text-slate-400">{stage.description}</span>
-            </div>
-          </li>
-        );
-      })}
-    </ol>
+    <div className="animate-fade-up rounded-2xl border border-[#e7e4dd] bg-white p-6 shadow-[0_1px_2px_rgba(26,25,23,0.04)]">
+      <div className="mb-5 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-[#8a857b]">
+        <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-[#4f46e5]" />
+        Working on your search
+      </div>
+      <ol className="relative flex flex-col gap-5">
+        <span
+          className="absolute left-3 top-3 bottom-3 w-px -translate-x-1/2 bg-[#e7e4dd]"
+          aria-hidden="true"
+        />
+        {PIPELINE_STAGES.map((stage, i) => {
+          const state = stateFor(i, currentIndex, done);
+          return (
+            <li key={stage.node} className="relative flex items-start gap-3.5">
+              <Dot state={state} />
+              <div className="flex flex-col pt-0.5">
+                <span
+                  className={
+                    state === "pending"
+                      ? "text-sm font-medium text-[#a8a399]"
+                      : "text-sm font-semibold text-[#1a1917]"
+                  }
+                >
+                  {stage.label}
+                </span>
+                <span className="text-xs text-[#8a857b]">{stage.description}</span>
+              </div>
+            </li>
+          );
+        })}
+      </ol>
+    </div>
   );
 }

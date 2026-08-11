@@ -12,12 +12,6 @@ import {
 } from "@/lib/format";
 import type { FeatureName, Recommendation } from "@/types/api";
 
-const RANK_STYLES = [
-  "bg-amber-100 text-amber-800 ring-amber-200",
-  "bg-slate-100 text-slate-700 ring-slate-200",
-  "bg-orange-100 text-orange-800 ring-orange-200",
-];
-
 function stopsLabel(stops: number): string {
   if (stops === 0) return "Nonstop";
   return `${stops} stop${stops > 1 ? "s" : ""}`;
@@ -25,9 +19,11 @@ function stopsLabel(stops: number): string {
 
 export default function ResultCard({
   rec,
+  label,
   consideredFeatures,
 }: {
   rec: Recommendation;
+  label?: string;
   consideredFeatures?: Set<FeatureName>;
 }) {
   const [expanded, setExpanded] = useState(false);
@@ -45,16 +41,18 @@ export default function ResultCard({
     (offer.baggage_allowance_kg ?? 0) + (offer.student_baggage_bonus_kg ?? 0);
 
   return (
-    <article className="group flex flex-col gap-4 rounded-3xl border border-white/60 bg-white/80 p-5 shadow-lg shadow-slate-900/5 ring-1 ring-slate-900/5 backdrop-blur-xl transition-all hover:-translate-y-0.5 hover:shadow-xl hover:shadow-indigo-500/10 sm:p-6">
+    <article className="group flex flex-col gap-4 rounded-2xl border border-[#e7e4dd] bg-white p-5 shadow-[0_1px_2px_rgba(26,25,23,0.04)] transition-shadow hover:shadow-[0_6px_24px_-8px_rgba(26,25,23,0.14)] sm:p-6">
       <header className="flex items-start justify-between gap-4">
-        <div className="flex items-center gap-3">
-          <span
-            className={`flex h-9 w-9 items-center justify-center rounded-xl text-sm font-bold ring-1 ${
-              RANK_STYLES[rec.rank - 1] ?? RANK_STYLES[1]
-            }`}
-          >
-            {rec.rank}
-          </span>
+        <div className="flex items-center gap-3.5">
+          <div className="flex flex-col items-center">
+            <span className="font-serif text-2xl leading-none text-[#1a1917]">
+              {String(rec.rank).padStart(2, "0")}
+            </span>
+            <span className="mt-1 text-[9px] font-medium uppercase tracking-[0.12em] text-[#9c978c]">
+              {label ?? "Pick"}
+            </span>
+          </div>
+          <span className="h-9 w-px bg-[#e7e4dd]" />
           {offer.airline_logo ? (
             <Image
               src={offer.airline_logo}
@@ -66,20 +64,20 @@ export default function ResultCard({
             />
           ) : null}
           <div className="flex flex-col">
-            <span className="text-sm font-semibold text-slate-900">
+            <span className="text-sm font-semibold text-[#1a1917]">
               {airlines.join(" · ")}
             </span>
-            <span className="text-xs text-slate-400">
+            <span className="text-xs text-[#8a857b]">
               {stopsLabel(stops)} · {formatDuration(offer.total_duration_minutes)}
             </span>
           </div>
         </div>
         <div className="text-right">
-          <div className="text-lg font-bold text-slate-900">
+          <div className="text-xl font-semibold tracking-tight text-[#1a1917]">
             {formatMoney(price, offer.currency)}
           </div>
           {(hasFees || hasSavings) && (
-            <div className="text-xs text-slate-400 line-through">
+            <div className="text-xs text-[#a8a399] line-through">
               {formatMoney(offer.price, offer.currency)}
             </div>
           )}
@@ -96,51 +94,51 @@ export default function ResultCard({
         </div>
       </header>
 
-      <div className="flex items-center gap-3 rounded-2xl bg-slate-50/70 px-4 py-3 text-sm text-slate-700">
+      <div className="flex items-center gap-3 rounded-xl border border-[#efece5] bg-[#faf9f6] px-4 py-3 text-sm text-[#423f3a]">
         <div className="text-center">
-          <div className="font-semibold">{formatTime(first.departure_time)}</div>
-          <div className="text-xs text-slate-400">{first.departure_airport}</div>
+          <div className="font-semibold tabular-nums">{formatTime(first.departure_time)}</div>
+          <div className="text-xs text-[#8a857b]">{first.departure_airport}</div>
         </div>
         <div className="flex flex-1 flex-col items-center">
-          <span className="text-[11px] text-slate-400">
+          <span className="text-[11px] text-[#8a857b]">
             {formatDuration(offer.total_duration_minutes)}
           </span>
           <div className="relative my-1.5 flex w-full items-center">
-            <span className="h-1.5 w-1.5 rounded-full bg-slate-300" />
-            <div className="h-px flex-1 bg-linear-to-r from-slate-300 via-slate-300 to-slate-300" />
+            <span className="h-1.5 w-1.5 rounded-full bg-[#c9c4b8]" />
+            <div className="h-px flex-1 bg-[#d9d4c8]" />
             <svg
               viewBox="0 0 24 24"
-              className="h-3.5 w-3.5 shrink-0 -rotate-45 text-indigo-500"
+              className="h-3.5 w-3.5 shrink-0 -rotate-45 text-[#4f46e5]"
               fill="currentColor"
               aria-hidden="true"
             >
               <path d="M21 16v-2l-8-5V3.5A1.5 1.5 0 0 0 11.5 2 1.5 1.5 0 0 0 10 3.5V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5L21 16Z" />
             </svg>
-            <div className="h-px flex-1 bg-slate-300" />
-            <span className="h-1.5 w-1.5 rounded-full bg-slate-300" />
+            <div className="h-px flex-1 bg-[#d9d4c8]" />
+            <span className="h-1.5 w-1.5 rounded-full bg-[#c9c4b8]" />
           </div>
-          <span className="text-[11px] text-slate-400">{stopsLabel(stops)}</span>
+          <span className="text-[11px] text-[#8a857b]">{stopsLabel(stops)}</span>
         </div>
         <div className="text-center">
-          <div className="font-semibold">
+          <div className="font-semibold tabular-nums">
             {formatTime(last.arrival_time)}
             {crossesMidnight(first.departure_time, last.arrival_time) && (
               <sup className="ml-0.5 text-[10px] text-rose-500">+1</sup>
             )}
           </div>
-          <div className="text-xs text-slate-400">{last.arrival_airport}</div>
+          <div className="text-xs text-[#8a857b]">{last.arrival_airport}</div>
         </div>
       </div>
 
       {rec.narrative && (
-        <p className="rounded-xl border-l-2 border-indigo-200 bg-indigo-50/50 px-3.5 py-2.5 text-sm italic text-slate-600">
+        <p className="border-l-2 border-[#4f46e5]/30 pl-3.5 font-serif text-[15px] italic leading-relaxed text-[#423f3a]">
           {rec.narrative}
         </p>
       )}
 
       {hasBaggage && (
-        <p className="text-xs text-slate-500">
-          Cabin baggage: <span className="font-medium text-slate-700">{totalBagKg}kg</span>
+        <p className="text-xs text-[#6b675f]">
+          Cabin baggage: <span className="font-medium text-[#1a1917]">{totalBagKg}kg</span>
           {offer.student_baggage_bonus_kg
             ? ` (incl. +${offer.student_baggage_bonus_kg}kg student bonus)`
             : ""}
@@ -195,7 +193,7 @@ export default function ResultCard({
       <button
         type="button"
         onClick={() => setExpanded((v) => !v)}
-        className="inline-flex items-center gap-1 self-start text-xs font-medium text-indigo-600 transition-colors hover:text-indigo-800"
+        className="inline-flex items-center gap-1 self-start text-xs font-medium text-[#4f46e5] transition-colors hover:text-[#4338ca]"
       >
         <svg
           viewBox="0 0 24 24"
@@ -213,7 +211,7 @@ export default function ResultCard({
       </button>
 
       {expanded && (
-        <div className="flex flex-col gap-4 border-t border-slate-100 pt-4">
+        <div className="flex flex-col gap-4 border-t border-[#efece5] pt-4">
           <FeatureScores scored={rec.scored} consideredFeatures={consideredFeatures} />
           <ol className="flex flex-col gap-2">
             {offer.segments.map((seg, i) => (

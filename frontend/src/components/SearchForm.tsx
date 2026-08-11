@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { CabinClass, Persona, TripQuery } from "@/types/api";
 import AirportSelect from "@/components/AirportSelect";
 import DatePicker from "@/components/DatePicker";
@@ -19,6 +19,12 @@ const PERSONA_OPTIONS: { value: Persona | ""; label: string }[] = [
   { value: "student", label: "Student (budget-first)" },
   { value: "business", label: "Business (time-first)" },
   { value: "family", label: "Family (comfort-first)" },
+];
+
+const EXAMPLE_PROMPTS = [
+  "Afternoon arrival, no red-eyes",
+  "Cheapest with 2 checked bags",
+  "Fastest option, aisle seat",
 ];
 
 interface Props {
@@ -94,10 +100,10 @@ const labelClass = "flex flex-col gap-1.5 text-xs font-medium text-slate-500";
 function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
     <div className="mt-1 flex items-center gap-3">
-      <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">
+      <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[#9c978c]">
         {children}
       </span>
-      <span className="h-px flex-1 bg-slate-200/70" />
+      <span className="h-px flex-1 bg-[#e7e4dd]" />
     </div>
   );
 }
@@ -125,6 +131,16 @@ export default function SearchForm({ onSearch, disabled }: Props) {
   const [arriveStart, setArriveStart] = useState("");
   const [arriveEnd, setArriveEnd] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [isMac, setIsMac] = useState(false);
+
+  useEffect(() => {
+    setIsMac(/Mac|iPhone|iPad|iPod/.test(navigator.userAgent));
+  }, []);
+
+  function swapAirports() {
+    setOrigin(destination);
+    setDestination(origin);
+  }
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -186,7 +202,13 @@ export default function SearchForm({ onSearch, disabled }: Props) {
   return (
     <form
       onSubmit={handleSubmit}
-      className="flex flex-col gap-5 rounded-3xl border border-white/60 bg-white/70 p-6 shadow-xl shadow-slate-900/5 ring-1 ring-slate-900/5 backdrop-blur-xl sm:p-7"
+      onKeyDown={(e) => {
+        if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
+          e.preventDefault();
+          e.currentTarget.requestSubmit();
+        }
+      }}
+      className="flex flex-col gap-5 rounded-2xl border border-[#e7e4dd] bg-white p-6 shadow-[0_1px_2px_rgba(26,25,23,0.04)] sm:p-7"
     >
       <div
         role="radiogroup"
@@ -217,21 +239,52 @@ export default function SearchForm({ onSearch, disabled }: Props) {
 
       <SectionLabel>Where &amp; when</SectionLabel>
 
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:gap-2.5">
+        <div className="flex-1">
+          <AirportSelect
+            label="From"
+            value={origin}
+            onChange={setOrigin}
+            placeholder="City or airport, e.g. Dhaka"
+            disabled={disabled}
+          />
+        </div>
+        <button
+          type="button"
+          onClick={swapAirports}
+          disabled={disabled}
+          aria-label="Swap origin and destination"
+          title="Swap origin and destination"
+          className="mx-auto flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-[#e7e4dd] bg-white text-[#6b675f] shadow-[0_1px_2px_rgba(26,25,23,0.04)] transition-colors hover:border-[#d6d2c8] hover:text-[#1a1917] disabled:opacity-40 sm:mb-0.75"
+        >
+          <svg
+            viewBox="0 0 24 24"
+            className="h-4 w-4 rotate-90 sm:rotate-0"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.8"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden="true"
+          >
+            <path d="M7 4 4 7l3 3" />
+            <path d="M4 7h13" />
+            <path d="m17 20 3-3-3-3" />
+            <path d="M20 17H7" />
+          </svg>
+        </button>
+        <div className="flex-1">
+          <AirportSelect
+            label="To"
+            value={destination}
+            onChange={setDestination}
+            placeholder="City or airport, e.g. Los Angeles"
+            disabled={disabled}
+          />
+        </div>
+      </div>
+
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <AirportSelect
-          label="From"
-          value={origin}
-          onChange={setOrigin}
-          placeholder="City or airport, e.g. Dhaka"
-          disabled={disabled}
-        />
-        <AirportSelect
-          label="To"
-          value={destination}
-          onChange={setDestination}
-          placeholder="City or airport, e.g. Los Angeles"
-          disabled={disabled}
-        />
         <DatePicker
           label="Departure"
           value={departDate}
@@ -289,6 +342,21 @@ export default function SearchForm({ onSearch, disabled }: Props) {
           disabled={disabled}
         />
       </label>
+
+      <div className="-mt-1 flex flex-wrap items-center gap-x-2 gap-y-1.5 text-[12.5px] text-[#8a857b]">
+        <span className="text-[#a8a399]">Try</span>
+        {EXAMPLE_PROMPTS.map((ex) => (
+          <button
+            key={ex}
+            type="button"
+            onClick={() => setFreeText(ex)}
+            disabled={disabled}
+            className="rounded-md border border-[#efece5] bg-[#faf9f6] px-2 py-0.5 font-medium text-[#423f3a] transition-colors hover:border-[#d6d2c8] hover:text-[#1a1917] disabled:opacity-40"
+          >
+            {ex}
+          </button>
+        ))}
+      </div>
 
       <div className="flex items-center justify-between gap-4 rounded-xl border border-slate-200 bg-linear-to-r from-emerald-50/60 to-white px-4 py-3">
         <span className="flex items-center gap-2 text-sm font-medium text-slate-900">
@@ -454,7 +522,7 @@ export default function SearchForm({ onSearch, disabled }: Props) {
 
       <button
         type="submit"
-        className="group relative overflow-hidden rounded-2xl bg-linear-to-r from-indigo-600 via-violet-600 to-indigo-600 bg-size-[200%_100%] px-6 py-3.5 text-sm font-semibold text-white shadow-lg shadow-indigo-500/25 transition-all hover:bg-position-[100%_0] hover:shadow-xl hover:shadow-indigo-500/30 focus:outline-none focus:ring-4 focus:ring-indigo-500/25 disabled:cursor-not-allowed disabled:opacity-60"
+        className="group rounded-xl bg-[#1a1917] px-6 py-3.5 text-sm font-semibold text-[#fafaf8] transition-colors hover:bg-[#33302b] focus:outline-none focus:ring-2 focus:ring-[#1a1917]/20 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60"
         disabled={disabled}
       >
         <span className="flex items-center justify-center gap-2">
@@ -483,10 +551,35 @@ export default function SearchForm({ onSearch, disabled }: Props) {
               Searching…
             </>
           ) : (
-            "Find the best 3 flights"
+            <>
+              Find the best 3 flights
+              <svg
+                viewBox="0 0 24 24"
+                className="h-4 w-4 transition-transform group-hover:translate-x-0.5"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden="true"
+              >
+                <path d="M5 12h14M13 6l6 6-6 6" />
+              </svg>
+            </>
           )}
         </span>
       </button>
+
+      <p className="-mt-1 text-center text-[12px] text-[#a8a399]">
+        Press{" "}
+        <kbd className="rounded border border-[#e2ded5] bg-[#faf9f6] px-1.5 py-0.5 font-sans text-[11px] font-medium text-[#6b675f]">
+          {isMac ? "⌘" : "Ctrl"}
+        </kbd>{" "}
+        <kbd className="rounded border border-[#e2ded5] bg-[#faf9f6] px-1.5 py-0.5 font-sans text-[11px] font-medium text-[#6b675f]">
+          Enter
+        </kbd>{" "}
+        to search
+      </p>
     </form>
   );
 }

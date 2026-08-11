@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Geist, Geist_Mono, Fraunces } from "next/font/google";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -12,10 +12,17 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+const fraunces = Fraunces({
+  variable: "--font-fraunces",
+  subsets: ["latin"],
+  weight: ["400", "500", "600"],
+  style: ["normal", "italic"],
+});
+
 export const metadata: Metadata = {
-  title: "ParetoFly — the top 3 flights, explained",
+  title: "ParetoFly — the top three flights, explained",
   description:
-    "An AI agent that returns the top-3 Pareto-optimal flights with plain-English pros and cons.",
+    "An AI travel agent that surfaces the three Pareto-optimal flights for your trip, each with plain-English pros and cons.",
 };
 
 export default function RootLayout({
@@ -26,9 +33,10 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      className={`${geistSans.variable} ${geistMono.variable} ${fraunces.variable} h-full antialiased`}
     >
-      <body className="relative min-h-full flex flex-col bg-white text-slate-900">
+      <body className="relative min-h-full flex flex-col bg-transparent text-[#1a1917]">
+        <div className="app-backdrop" aria-hidden="true" />
         {children}
       </body>
     </html>
