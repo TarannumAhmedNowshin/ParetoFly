@@ -251,6 +251,11 @@ matters for a free deployment — quota exhaustion and untrusted input:
 - **Per-IP rate limit.** `/search` and `/search/stream` are capped at 10
   requests/minute per client (via `slowapi`, keyed on `X-Forwarded-For` so it is
   correct behind Render/Vercel); over-limit returns `429`.
+- **Daily budget cap.** A hard per-day ceiling on *live* SerpAPI searches
+  (`SERPAPI_DAILY_BUDGET`, cache hits exempt) means even distributed traffic
+  cannot blow the 250/month free quota.
+- **No public API surface.** Interactive docs (`/docs`, `/redoc`, `/openapi.json`)
+  are disabled in the deployment (`ENABLE_DOCS=false`).
 - **Graceful AI rate-limit.** When the Gemini free tier is exhausted, the search
   withholds partial output and returns a notice asking the user to retry shortly,
   rather than showing degraded results.

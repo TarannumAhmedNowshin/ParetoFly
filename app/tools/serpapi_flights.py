@@ -21,6 +21,7 @@ import httpx
 from app.config import Settings, get_settings
 from app.logging_config import get_logger
 from app.models.schemas import FlightOffer, FlightSegment, Layover, TripQuery
+from app.tools.budget import note_serpapi_search, serpapi_budget_exhausted
 from app.tools.flight_cache import FlightCache, cache_key
 
 _DELAY_FLAG = "often_delayed_by_over_30_min"
@@ -189,6 +190,12 @@ def search_flights(
 
     params = _build_params(query, settings)
     result_currency = query.currency
+    # Cache miss: this will consume one of the limited monthly SerpAPI searches,
+    # so refuse it once the daily budget is spent (protects the free-tier cap).
+    if serpapi_budget_exhausted():
+        raise SerpApiError(
+            "Daily flight-search budget reached. Please try again tomorrow."
+        )
     log.info(
         "serpapi: live request %s->%s depart=%s currency=%s cabin=%s type=%s (cache_%s)",
         query.origin, query.destination, query.depart_date, query.currency,
@@ -228,6 +235,7 @@ def search_flights(
         log.error("serpapi: API error payload: %s", _redact(str(payload["error"])))
         raise SerpApiError(_redact(str(payload["error"])))
 
+    note_serpapi_search()
     offers = _extract_offers(payload, result_currency)
     log.info("serpapi: parsed %d offers (currency=%s)", len(offers), result_currency)
     if cache is not None and offers:

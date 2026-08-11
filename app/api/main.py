@@ -40,14 +40,22 @@ def _client_ip(request: Request) -> str:
 # Per-IP limiter shields the free SerpAPI/Gemini quotas from scripted abuse.
 limiter = Limiter(key_func=_client_ip)
 
-app = FastAPI(title="ParetoFly", version="0.1.0")
+_settings = get_settings()
+# Interactive docs are disabled in the public deployment (ENABLE_DOCS=true for dev).
+app = FastAPI(
+    title="ParetoFly",
+    version="0.1.0",
+    docs_url="/docs" if _settings.enable_docs else None,
+    redoc_url="/redoc" if _settings.enable_docs else None,
+    openapi_url="/openapi.json" if _settings.enable_docs else None,
+)
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 # Allow only the configured frontend origin(s); the API uses no cookies/credentials.
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=get_settings().cors_origins_list,
+    allow_origins=_settings.cors_origins_list,
     allow_credentials=False,
     allow_methods=["GET", "POST", "OPTIONS"],
     allow_headers=["Content-Type"],

@@ -22,6 +22,10 @@ services:
         value: "10"
       - key: GEMINI_MAX_RETRIES
         value: "5"
+      # Hard daily ceiling on live SerpAPI searches (protects the 250/month cap).
+      - key: SERPAPI_DAILY_BUDGET
+        value: "40"
+      # Interactive /docs stays OFF in production (ENABLE_DOCS unset).
       # --- Secrets & environment-specific (set these in the dashboard) ---
       # CORS_ALLOW_ORIGINS = your Vercel URL, e.g. https://paretofly.vercel.app
       - key: CORS_ALLOW_ORIGINS

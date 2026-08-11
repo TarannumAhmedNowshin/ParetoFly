@@ -84,6 +84,12 @@ class Settings(BaseSettings):
         validation_alias=AliasChoices("CORS_ALLOW_ORIGINS", "cors_allow_origins"),
         description="Comma-separated list of allowed frontend origins.",
     )
+    # Interactive docs (/docs, /redoc, /openapi.json) are OFF unless explicitly
+    # enabled — keep them off in the public deployment, on for local dev.
+    enable_docs: bool = Field(
+        default=False,
+        validation_alias=AliasChoices("ENABLE_DOCS", "enable_docs"),
+    )
 
     # --- SerpAPI response cache (protects the 250 searches/month free cap) ---
     serpapi_cache_enabled: bool = Field(
@@ -97,6 +103,13 @@ class Settings(BaseSettings):
     serpapi_cache_ttl_seconds: int = Field(
         default=21600,  # 6 hours
         validation_alias=AliasChoices("SERPAPI_CACHE_TTL_SECONDS", "serpapi_cache_ttl_seconds"),
+    )
+    # Hard daily ceiling on LIVE SerpAPI searches (cache hits don't count), so no
+    # amount of traffic can blow the 250/month free cap. 0 = unlimited (local dev).
+    serpapi_daily_budget: int = Field(
+        default=0,
+        validation_alias=AliasChoices("SERPAPI_DAILY_BUDGET", "serpapi_daily_budget"),
+        description="Max live SerpAPI searches per day (0 = unlimited).",
     )
 
     # --- Downloadable per-search reports ---
