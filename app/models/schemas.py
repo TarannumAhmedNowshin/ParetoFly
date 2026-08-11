@@ -69,8 +69,8 @@ class ParsedSignals(BaseModel):
 class TripQuery(BaseModel):
     """Validated trip request assembled from the hybrid intake form + free text."""
 
-    origin: str = Field(..., description="IATA code or city/airport name")
-    destination: str = Field(..., description="IATA code or city/airport name")
+    origin: str = Field(..., max_length=100, description="IATA code or city/airport name")
+    destination: str = Field(..., max_length=100, description="IATA code or city/airport name")
     depart_date: date
     return_date: Optional[date] = None
 
@@ -83,17 +83,17 @@ class TripQuery(BaseModel):
     max_stops: Optional[int] = Field(default=None, ge=0)
     budget: Optional[float] = Field(default=None, gt=0)
     max_layover_minutes: Optional[int] = Field(default=None, gt=0)
-    preferred_airlines: list[str] = Field(default_factory=list)
-    excluded_airlines: list[str] = Field(default_factory=list)
+    preferred_airlines: list[str] = Field(default_factory=list, max_length=25)
+    excluded_airlines: list[str] = Field(default_factory=list, max_length=25)
     is_student: bool = False
     eco_friendly: bool = Field(
         default=False,
         description="When true, carbon emissions become a real ranking factor; otherwise they are ignored.",
     )
-    currency: str = "USD"
+    currency: str = Field(default="USD", max_length=8)
 
-    # Free-text box + parsed result
-    free_text: Optional[str] = None
+    # Free-text box + parsed result (capped to bound LLM token cost and abuse).
+    free_text: Optional[str] = Field(default=None, max_length=1000)
     signals: ParsedSignals = Field(default_factory=ParsedSignals)
 
     weights: Weights = Field(default_factory=Weights)

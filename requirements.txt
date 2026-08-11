@@ -8,6 +8,7 @@ langchain-google-genai>=2.0
 fastapi>=0.115
 uvicorn[standard]>=0.30
 sse-starlette>=2.1
+slowapi>=0.1.9
 
 # web-knowledge fallback (headless browser search); browser via `playwright install chromium`
 playwright>=1.45

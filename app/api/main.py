@@ -12,9 +12,12 @@ import json
 from uuid import uuid4
 from typing import Any
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
+from slowapi.util import get_remote_address
 from sse_starlette.sse import EventSourceResponse
 
 from app.config import get_settings
@@ -24,15 +27,30 @@ from app.logging_config import bind_session, get_logger
 from app.models.schemas import Recommendation, TripQuery
 from app.reporting import is_valid_session_id, report_path, save_report
 
-app = FastAPI(title="ParetoFly", version="0.1.0")
 
-# Allow the Next.js frontend (configurable via CORS_ALLOW_ORIGINS) to call the API.
+def _client_ip(request: Request) -> str:
+    """Real client IP, honoring the proxy's X-Forwarded-For (Render/Vercel)."""
+
+    forwarded = request.headers.get("x-forwarded-for")
+    if forwarded:
+        return forwarded.split(",")[0].strip()
+    return get_remote_address(request)
+
+
+# Per-IP limiter shields the free SerpAPI/Gemini quotas from scripted abuse.
+limiter = Limiter(key_func=_client_ip)
+
+app = FastAPI(title="ParetoFly", version="0.1.0")
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
+# Allow only the configured frontend origin(s); the API uses no cookies/credentials.
 app.add_middleware(
     CORSMiddleware,
     allow_origins=get_settings().cors_origins_list,
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_credentials=False,
+    allow_methods=["GET", "POST", "OPTIONS"],
+    allow_headers=["Content-Type"],
 )
 
 # Compile the graph once at import time and reuse it across requests.
@@ -75,7 +93,8 @@ def health() -> dict[str, str]:
 
 
 @app.post("/search")
-async def search(query: TripQuery) -> dict[str, Any]:
+@limiter.limit("10/minute")
+async def search(request: Request, query: TripQuery) -> dict[str, Any]:
     """Run the pipeline, save a downloadable report, return recommendations."""
 
     session_id = uuid4().hex
@@ -97,7 +116,8 @@ async def search(query: TripQuery) -> dict[str, Any]:
 
 
 @app.post("/search/stream")
-async def search_stream(query: TripQuery) -> EventSourceResponse:
+@limiter.limit("10/minute")
+async def search_stream(request: Request, query: TripQuery) -> EventSourceResponse:
     """Stream node progress, then a terminal ``result`` event."""
 
     session_id = uuid4().hex

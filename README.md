@@ -1,5 +1,7 @@
 # ParetoFly
 
+**Live demo:** [pareto-fly.vercel.app](https://pareto-fly.vercel.app) · API: [paretofly-api.onrender.com](https://paretofly-api.onrender.com/health) *(free tiers — the backend may take ~50s to wake on the first request)*
+
 A weekend project: I needed to book a flight, so instead of messaging a travel
 agent I built an AI one. You write your requirements in your own words — "cheapest
 option, student fares if any, no red-eyes, arriving before noon" — and it searches
@@ -240,6 +242,28 @@ live on ephemeral disk and reset on restart, which is fine for a free demo.
   pipeline surfaces this as a clean error rather than a stack trace.
 - On Windows PowerShell, `>` redirects write UTF-16; read them back with
   `Get-Content -Encoding Unicode`. The CLI forces UTF-8 stdout.
+
+## Security and limits
+
+The API is public and unauthenticated, so it is hardened against the abuse that
+matters for a free deployment — quota exhaustion and untrusted input:
+
+- **Per-IP rate limit.** `/search` and `/search/stream` are capped at 10
+  requests/minute per client (via `slowapi`, keyed on `X-Forwarded-For` so it is
+  correct behind Render/Vercel); over-limit returns `429`.
+- **Graceful AI rate-limit.** When the Gemini free tier is exhausted, the search
+  withholds partial output and returns a notice asking the user to retry shortly,
+  rather than showing degraded results.
+- **Strict CORS.** Only the configured `CORS_ALLOW_ORIGINS` may call the API; no
+  credentials, methods limited to `GET`/`POST`.
+- **Bounded input.** `free_text` (≤1000 chars) and other fields are length-capped
+  at the schema boundary.
+- **Prompt-injection resistant.** The traveler note and scraped web snippets are
+  passed to the LLMs as clearly delimited *untrusted data*; discounts are
+  additionally gated on official-source corroboration, confidence, and clamps.
+- **No secrets or PII exposed.** Keys load from a git-ignored `.env` and are
+  redacted from logs; report IDs are unguessable and path-validated; nothing is
+  booked or persisted beyond ephemeral per-search reports.
 
 ## Tests
 
