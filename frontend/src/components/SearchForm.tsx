@@ -570,16 +570,17 @@ export default function SearchForm({ onSearch, disabled }: Props) {
         </span>
       </button>
 
-      <p className="-mt-1 text-center text-[12px] text-[#a8a399]">
-        Press{" "}
-        <kbd className="rounded border border-[#e2ded5] bg-[#faf9f6] px-1.5 py-0.5 font-sans text-[11px] font-medium text-[#6b675f]">
-          {isMac ? "⌘" : "Ctrl"}
-        </kbd>{" "}
-        <kbd className="rounded border border-[#e2ded5] bg-[#faf9f6] px-1.5 py-0.5 font-sans text-[11px] font-medium text-[#6b675f]">
-          Enter
-        </kbd>{" "}
-        to search
-      </p>
-    </form>
+      {!disabled && (
+        <p className="-mt-1 text-center text-[12px] text-[#a8a399]">
+          Press{" "}
+          <kbd className="rounded border border-[#e2ded5] bg-[#faf9f6] px-1.5 py-0.5 font-sans text-[11px] font-medium text-[#6b675f]">
+            {isMac ? "⌘" : "Ctrl"}
+          </kbd>{" "}
+          <kbd className="rounded border border-[#e2ded5] bg-[#faf9f6] px-1.5 py-0.5 font-sans text-[11px] font-medium text-[#6b675f]">
+            Enter
+          </kbd>{" "}
+          to search
+        </p>
+      )}    </form>
   );
 }

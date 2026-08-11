@@ -4,7 +4,6 @@ import { useCallback, useMemo, useRef, useState } from "react";
 import SearchForm from "@/components/SearchForm";
 import ProgressTimeline from "@/components/ProgressTimeline";
 import ResultCard from "@/components/ResultCard";
-import ResultSkeleton from "@/components/ResultSkeleton";
 import InfoPanel from "@/components/InfoPanel";
 import { searchStream, reportUrl } from "@/lib/api";
 import { derivePickLabels } from "@/lib/labels";
@@ -173,7 +172,29 @@ export default function Home() {
                 Comparing every option across your priorities…
               </p>
             </div>
-            <ResultSkeleton />
+            <div className="flex flex-col items-center justify-center gap-4 rounded-2xl border border-[#e7e4dd] bg-white py-16 shadow-[0_1px_2px_rgba(26,25,23,0.04)]">
+              <svg
+                className="h-8 w-8 animate-spin text-[#4f46e5]"
+                viewBox="0 0 24 24"
+                fill="none"
+                aria-hidden="true"
+              >
+                <circle
+                  className="opacity-20"
+                  cx="12"
+                  cy="12"
+                  r="10"
+                  stroke="currentColor"
+                  strokeWidth="3"
+                />
+                <path
+                  className="opacity-90"
+                  fill="currentColor"
+                  d="M4 12a8 8 0 0 1 8-8V1C5.9 1 1 5.9 1 12h3Z"
+                />
+              </svg>
+              <p className="text-[13px] text-[#8a857b]">Scoring the best options…</p>
+            </div>
           </section>
         )}
 
