@@ -131,6 +131,7 @@ export interface Recommendation {
 export interface SearchResult {
   session_id: string | null;
   error: string | null;
+  notice: string | null;
   log: string[];
   recommendations: Recommendation[];
 }

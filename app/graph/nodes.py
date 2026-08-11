@@ -10,6 +10,11 @@ from __future__ import annotations
 from app.graph.state import GraphState
 from app.enrichment import enrich_true_prices
 from app.llm.explain import write_explanations
+from app.llm.gemini_client import (
+    RATE_LIMIT_NOTICE,
+    begin_llm_call_tracking,
+    llm_rate_limited,
+)
 from app.llm.intake import parse_free_text
 from app.logging_config import get_logger, set_session
 from app.models.schemas import Recommendation, ScoredFlight, TripQuery
@@ -34,6 +39,7 @@ def intake_node(state: GraphState) -> GraphState:
 
     _bind(state)
     query: TripQuery = state["query"]
+    begin_llm_call_tracking()
     query.signals = parse_free_text(query)
     # Auto-select a persona (drives default weights) unless the caller set one.
     if query.persona is None:
@@ -45,10 +51,13 @@ def intake_node(state: GraphState) -> GraphState:
         (query.free_text or "").strip(),
     )
     log.debug("intake: parsed signals=%s", query.signals.model_dump(exclude_defaults=True))
-    return {
+    update: GraphState = {
         "query": query,
         "log": _log(state, f"intake: {query.origin}->{query.destination} on {query.depart_date}{persona_note}"),
     }
+    if llm_rate_limited():
+        update["notice"] = RATE_LIMIT_NOTICE
+    return update
 
 
 def search_node(state: GraphState) -> GraphState:
@@ -92,10 +101,11 @@ def enrich_node(state: GraphState) -> GraphState:
     _bind(state)
     offers = state.get("offers", [])
     reset_status()
+    begin_llm_call_tracking()
     adjusted = enrich_true_prices(offers, state["query"])
     status = last_status()
     if status.all_failed:
-        note = " [web search unavailable — discounts skipped]"
+        note = " [web search unavailable \u2014 discounts skipped]"
     elif status.provider and status.provider != "serper":
         note = f" [via {status.provider} fallback]"
     else:
@@ -104,7 +114,10 @@ def enrich_node(state: GraphState) -> GraphState:
         "enrich: adjusted %d true prices (provider=%s all_failed=%s)",
         adjusted, status.provider, status.all_failed,
     )
-    return {"offers": offers, "log": _log(state, f"enrich: adjusted {adjusted} true prices{note}")}
+    update: GraphState = {"offers": offers, "log": _log(state, f"enrich: adjusted {adjusted} true prices{note}")}
+    if llm_rate_limited():
+        update["notice"] = RATE_LIMIT_NOTICE
+    return update
 
 
 def rank_node(state: GraphState) -> GraphState:
@@ -202,12 +215,10 @@ def _rule_based_reasons(rec: Recommendation, all_recs: list[Recommendation], que
     if offer.site_discount_amount:
         source = offer.site_discount_source or "online booking"
         pros.append(f"{source} exclusive discount ~{offer.currency} {offer.site_discount_amount:.0f}")
-    if offer.student_baggage_bonus_kg:
-        total = offer.total_cabin_baggage_kg
-        extra = f" ({total:.0f}kg total)" if total else ""
-        pros.append(f"+{offer.student_baggage_bonus_kg:.0f}kg student baggage{extra}")
-    elif offer.baggage_allowance_kg:
+    if offer.baggage_allowance_kg:
         pros.append(f"Includes {offer.baggage_allowance_kg:.0f}kg cabin baggage")
+    if offer.student_baggage_bonus_kg:
+        pros.append(f"+{offer.student_baggage_bonus_kg:.0f}kg extra checked baggage for students")
 
     max_lay = query.max_layover_minutes
     if max_lay is not None and any(l.duration_minutes > max_lay for l in offer.layovers):
@@ -250,7 +261,10 @@ def explain_node(state: GraphState) -> GraphState:
     used_llm = write_explanations(recs, state["query"])
     how = "LLM" if used_llm else "rule-based"
     log.info("explain: attached reasons to %d recs (%s)", len(recs), how)
-    return {"recommendations": recs, "log": _log(state, f"explain: attached reasons ({how})")}
+    update: GraphState = {"recommendations": recs, "log": _log(state, f"explain: attached reasons ({how})")}
+    if llm_rate_limited():
+        update["notice"] = RATE_LIMIT_NOTICE
+    return update
 
 
 def present_node(state: GraphState) -> GraphState:

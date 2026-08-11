@@ -171,6 +171,8 @@ class FlightOffer(BaseModel):
     site_discount_evidence: Optional[str] = None
     baggage_allowance_pieces: Optional[int] = None
     baggage_allowance_kg: Optional[float] = None
+    # Student programs (e.g. Qatar Student Club) grant extra CHECKED/hold
+    # baggage, not cabin allowance — keep it separate from the carry-on figure.
     student_baggage_bonus_pieces: Optional[int] = None
     student_baggage_bonus_kg: Optional[float] = None
     price_breakdown: dict[str, float] = Field(default_factory=dict)
@@ -196,22 +198,19 @@ class FlightOffer(BaseModel):
         return self.true_price if self.true_price is not None else self.price
 
     @property
-    def total_cabin_baggage_kg(self) -> Optional[float]:
-        """Base cabin allowance plus any student bonus (None if unknown)."""
+    def cabin_baggage_kg(self) -> Optional[float]:
+        """Included cabin/carry-on allowance in kg (None if unknown).
 
-        base, bonus = self.baggage_allowance_kg, self.student_baggage_bonus_kg
-        if base is None and bonus is None:
-            return None
-        return (base or 0.0) + (bonus or 0.0)
+        The student bonus is *checked* baggage and is deliberately excluded.
+        """
+
+        return self.baggage_allowance_kg
 
     @property
-    def total_cabin_baggage_pieces(self) -> Optional[int]:
-        """Base cabin pieces plus any student bonus (None if unknown)."""
+    def cabin_baggage_pieces(self) -> Optional[int]:
+        """Included cabin/carry-on pieces (None if unknown)."""
 
-        base, bonus = self.baggage_allowance_pieces, self.student_baggage_bonus_pieces
-        if base is None and bonus is None:
-            return None
-        return (base or 0) + (bonus or 0)
+        return self.baggage_allowance_pieces
 
 
 class ScoredFlight(BaseModel):

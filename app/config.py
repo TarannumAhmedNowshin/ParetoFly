@@ -35,42 +35,42 @@ class Settings(BaseSettings):
         validation_alias=AliasChoices("SERPAPI_API_KEY", "SerpApi_key", "serpapi_key"),
     )
 
-    # --- Azure OpenAI: GPT-5 (narrative / explain) ---
-    azure_gpt5_endpoint: str = Field(
+    # --- Google Gemini (single free API key powers both tiers) ---
+    gemini_api_key: str = Field(
         default="",
-        validation_alias=AliasChoices("AZURE_GPT5_ENDPOINT", "azure_gpt5_endpoint"),
-    )
-    azure_gpt5_api_key: str = Field(
-        default="",
-        validation_alias=AliasChoices("AZURE_GPT5_API_KEY", "azure_gpt5_api_key"),
-    )
-    azure_gpt5_api_version: str = Field(
-        default="2024-12-01-preview",
-        validation_alias=AliasChoices("AZURE_GPT5_API_VERSION", "azure_gpt5_api_version"),
-    )
-    azure_gpt5_deployment: str = Field(
-        default="gpt-5",
-        validation_alias=AliasChoices("AZURE_GPT5_DEPLOYMENT", "azure_gpt5_deployment"),
-    )
-
-    # --- Azure OpenAI: GPT-5-mini (intake / clarify / extraction) ---
-    azure_gpt5_mini_endpoint: str = Field(
-        default="",
-        validation_alias=AliasChoices("AZURE_GPT5_MINI_ENDPOINT", "azure_gpt5_mini_endpoint"),
-    )
-    azure_gpt5_mini_api_key: str = Field(
-        default="",
-        validation_alias=AliasChoices("AZURE_GPT5_MINI_API_KEY", "azure_gpt5_mini_api_key"),
-    )
-    azure_gpt5_mini_api_version: str = Field(
-        default="2024-12-01-preview",
         validation_alias=AliasChoices(
-            "AZURE_GPT5_MINI_API_VERSION", "azure_gpt5_mini_api_version"
+            "GEMINI_API_KEY", "gemini_api_key", "GOOGLE_API_KEY", "google_api_key"
         ),
     )
-    azure_gpt5_mini_deployment: str = Field(
-        default="gpt-5-mini",
-        validation_alias=AliasChoices("AZURE_GPT5_MINI_DEPLOYMENT", "azure_gpt5_mini_deployment"),
+    # Narrative / explain node — quality tier.
+    gemini_full_model: str = Field(
+        default="gemini-flash-latest",
+        validation_alias=AliasChoices("GEMINI_FULL_MODEL", "gemini_full_model"),
+    )
+    # Intake / clarify / extraction — cheap, high-volume tier (fans out per airline).
+    gemini_mini_model: str = Field(
+        default="gemini-flash-lite-latest",
+        validation_alias=AliasChoices("GEMINI_MINI_MODEL", "gemini_mini_model"),
+    )
+
+    # --- Gemini free-tier rate-limit protection ---
+    # A shared client-side limiter throttles ALL Gemini calls (including the
+    # concurrent per-airline enrichment fan-out) to stay under the free-tier
+    # requests-per-minute cap, avoiding 429s before they happen.
+    gemini_requests_per_minute: float = Field(
+        default=10.0,
+        validation_alias=AliasChoices("GEMINI_REQUESTS_PER_MINUTE", "gemini_requests_per_minute"),
+        description="Client-side throughput cap shared across all Gemini calls (free tier ~10-15 RPM).",
+    )
+    # On a 429 the client retries with exponential backoff before falling back.
+    gemini_max_retries: int = Field(
+        default=5,
+        validation_alias=AliasChoices("GEMINI_MAX_RETRIES", "gemini_max_retries"),
+        description="Retries with exponential backoff on transient 429/5xx before giving up.",
+    )
+    gemini_timeout: float = Field(
+        default=45.0,
+        validation_alias=AliasChoices("GEMINI_TIMEOUT", "gemini_timeout"),
     )
 
     # --- Request defaults ---

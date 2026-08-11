@@ -25,14 +25,14 @@ from typing import Optional
 from pydantic import BaseModel, Field
 
 from app.config import get_settings
-from app.llm.azure_client import get_mini_llm
+from app.llm.gemini_client import get_mini_llm, is_rate_limit_error, note_rate_limit
 from app.logging_config import get_logger
 from app.models.schemas import FlightOffer, TripQuery
 from app.tools.kb_cache import KnowledgeCache, kb_key
 from app.tools.web_knowledge import WebSnippet, get_web_documents
 
 _DEFAULT_FEE_USD = 60.0  # conservative fallback when a baggage fee is unknown
-_FACTS_VERSION = "airline_facts_v3"
+_FACTS_VERSION = "airline_facts_v5"
 
 log = get_logger("enrichment")
 
@@ -50,10 +50,16 @@ class _AirlineFacts(BaseModel):
         default=None, description="Percentage student discount (entry/lowest tier if tiered)"
     )
     student_extra_baggage_kg: Optional[float] = Field(
-        default=None, description="Extra baggage (kg) a student gets on top of the base allowance"
+        default=None,
+        description=(
+            "ADDITIONAL CHECKED/hold baggage (kg) a student gets ON TOP OF the "
+            "standard allowance \u2014 the extra amount only (e.g. +10kg, or +23kg for "
+            "one extra bag). NEVER the student's TOTAL allowance: if standard is "
+            "30kg and students get 40kg, the extra is 10. Not cabin/carry-on."
+        ),
     )
     student_extra_baggage_pieces: Optional[int] = Field(
-        default=None, description="Extra baggage pieces a student gets"
+        default=None, description="Extra CHECKED/hold baggage pieces a student gets (not cabin)"
     )
     student_conditional: bool = Field(
         default=False, description="True if the student benefit needs membership/verification"
@@ -90,7 +96,11 @@ class _AirlineFacts(BaseModel):
     site_discount_source_domain: Optional[str] = None
     site_discount_source_url: Optional[str] = None
     cabin_baggage_kg: Optional[float] = Field(
-        default=None, description="Included cabin/carry-on baggage weight allowance in kg"
+        default=None,
+        description=(
+            "Included cabin/carry-on baggage WEIGHT allowance in kg for this cabin "
+            "(e.g. economy ~7-8kg). Do NOT put a student checked-baggage bonus here."
+        ),
     )
     cabin_baggage_pieces: Optional[int] = Field(
         default=None, description="Included cabin/carry-on baggage pieces"
@@ -110,7 +120,11 @@ _EXTRACT_SYSTEM = (
     "'save 50% vs airport check-in', 'up to X% off', 'cheaper than the counter') "
     "as a discount \u2014 leave those null. Set site_discount only for a named "
     "booking portal offering a concrete fare discount. Mark student_conditional "
-    "true when the benefit requires joining a student club or identity verification."
+    "true when the benefit requires joining a student club or identity verification. "
+    "Keep cabin/carry-on allowance (cabin_baggage_kg) separate from a student's "
+    "extra CHECKED/hold baggage (student_extra_baggage_kg) \u2014 never merge them. "
+    "For student_extra_baggage_kg report only the ADDITIONAL kg over the standard "
+    "allowance, never the total (e.g. standard 30kg, student 40kg \u2192 extra is 10)."
 )
 
 # In-process memo (L1). Only non-empty, freshly-fetched facts are stored so a
@@ -143,7 +157,10 @@ def _clamp(f: _AirlineFacts) -> _AirlineFacts:
     # Real carrier student-program discounts sit in the ~5-20% range; anything
     # higher is almost always a misread promo, so treat it as noise.
     f.student_discount_percent = ok(f.student_discount_percent, 0, 20)
-    f.student_extra_baggage_kg = ok(f.student_extra_baggage_kg, 0, 40)
+    # A student baggage *bonus* is the extra over the standard allowance (e.g.
+    # +10kg, or +23kg for one extra piece). A larger figure (e.g. 40) is almost
+    # always the student's TOTAL allowance misread as a bonus, so reject it.
+    f.student_extra_baggage_kg = ok(f.student_extra_baggage_kg, 0, 23)
     f.student_extra_baggage_pieces = ok(f.student_extra_baggage_pieces, 0, 3)
     f.site_discount_amount = ok(f.site_discount_amount, 0, 1000)
     f.cabin_baggage_kg = ok(f.cabin_baggage_kg, 0, 40)
@@ -285,6 +302,8 @@ def _fetch_airline_facts(airline: str, cabin: str, currency: str) -> tuple[_Airl
         llm = get_mini_llm().with_structured_output(_AirlineFacts)
         facts: _AirlineFacts = llm.invoke([("system", _EXTRACT_SYSTEM), ("human", prompt)])
     except Exception as exc:  # pragma: no cover - network/parse failure -> no data
+        if is_rate_limit_error(exc):
+            note_rate_limit()
         log.warning("enrich: fact extraction failed for %s (%s)", airline, exc)
         return _AirlineFacts(), False
     facts = _verify(_drop_unsupported(_clamp(facts)), docs, airline)

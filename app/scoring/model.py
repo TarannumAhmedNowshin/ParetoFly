@@ -152,7 +152,7 @@ def _luggage_fit_score(offer: FlightOffer, query: TripQuery) -> float:
 
     parts: list[float] = []
     if carry_focus:
-        allow_kg = offer.total_cabin_baggage_kg
+        allow_kg = offer.cabin_baggage_kg
         if allow_kg is None:
             parts.append(0.5)
         else:
@@ -164,7 +164,9 @@ def _luggage_fit_score(offer: FlightOffer, query: TripQuery) -> float:
             else:
                 parts.append(0.2)
     if has_checked:
-        parts.append(1.0 if _fare_has_checked_bag(offer) else 0.4)
+        # A student's extra checked-baggage bonus also eases a checked-bag trip.
+        covered = _fare_has_checked_bag(offer) or bool(offer.student_baggage_bonus_kg)
+        parts.append(1.0 if covered else 0.4)
     return sum(parts) / len(parts) if parts else 0.5
 
 

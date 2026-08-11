@@ -1,0 +1,30 @@
+# Keep the Docker build context small and fast.
+.git/
+.github/
+.vscode/
+
+# Frontend is deployed separately (Vercel) — never needed in the backend image.
+frontend/
+
+# Python envs / caches
+.venv/
+venv/
+__pycache__/
+*.pyc
+*.pyo
+
+# Runtime/ephemeral data (regenerated at runtime)
+.cache/
+reports/
+logs/
+
+# Dev-only
+tests/
+docs/
+*.md
+!requirements-prod.txt
+
+# Secrets must never enter the image
+.env
+.env.*
+!.env.example

@@ -1,8 +1,8 @@
-"""LLM intake: parse the free-text box into structured signals (GPT-5-mini)."""
+"""LLM intake: parse the free-text box into structured signals (Gemini mini)."""
 
 from __future__ import annotations
 
-from app.llm.azure_client import get_mini_llm
+from app.llm.gemini_client import get_mini_llm, is_rate_limit_error, note_rate_limit
 from app.logging_config import get_logger
 from app.models.schemas import ParsedSignals, TripQuery
 
@@ -53,6 +53,8 @@ def parse_free_text(query: TripQuery) -> ParsedSignals:
         )
         log.info("intake: LLM parsed free text (%d chars)", len(query.free_text.strip()))
     except Exception as exc:  # pragma: no cover - network/parse failure -> safe fallback
+        if is_rate_limit_error(exc):
+            note_rate_limit()
         log.warning("intake: LLM parse failed (%s); using form-derived signals", exc)
         return base
 

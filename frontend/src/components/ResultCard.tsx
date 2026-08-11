@@ -35,10 +35,9 @@ export default function ResultCard({
   const hasFees = offer.true_price != null && offer.true_price > offer.price;
   const hasSavings = offer.true_price != null && offer.true_price < offer.price;
   const airlines = Array.from(new Set(offer.segments.map((s) => s.airline)));
-  const hasBaggage =
-    offer.baggage_allowance_kg != null || offer.student_baggage_bonus_kg != null;
-  const totalBagKg =
-    (offer.baggage_allowance_kg ?? 0) + (offer.student_baggage_bonus_kg ?? 0);
+  const cabinBaggageKg = offer.baggage_allowance_kg ?? null;
+  const studentCheckedBonusKg = offer.student_baggage_bonus_kg ?? null;
+  const hasBaggage = cabinBaggageKg != null || studentCheckedBonusKg != null;
 
   return (
     <article className="group flex flex-col gap-4 rounded-2xl border border-[#e7e4dd] bg-white p-5 shadow-[0_1px_2px_rgba(26,25,23,0.04)] transition-shadow hover:shadow-[0_6px_24px_-8px_rgba(26,25,23,0.14)] sm:p-6">
@@ -138,9 +137,14 @@ export default function ResultCard({
 
       {hasBaggage && (
         <p className="text-xs text-[#6b675f]">
-          Cabin baggage: <span className="font-medium text-[#1a1917]">{totalBagKg}kg</span>
-          {offer.student_baggage_bonus_kg
-            ? ` (incl. +${offer.student_baggage_bonus_kg}kg student bonus)`
+          {cabinBaggageKg != null && (
+            <>
+              Cabin baggage:{" "}
+              <span className="font-medium text-[#1a1917]">{cabinBaggageKg}kg</span>
+            </>
+          )}
+          {studentCheckedBonusKg != null
+            ? `${cabinBaggageKg != null ? " · " : ""}+${studentCheckedBonusKg}kg checked baggage (student perk)`
             : ""}
         </p>
       )}

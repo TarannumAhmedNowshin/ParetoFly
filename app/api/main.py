@@ -41,10 +41,13 @@ _log = get_logger("api")
 
 
 def _serialize(state: GraphState, session_id: str | None = None) -> dict[str, Any]:
-    recs: list[Recommendation] = state.get("recommendations", []) or []
+    # On a free-tier rate limit we withhold results and show only the notice.
+    notice = state.get("notice")
+    recs: list[Recommendation] = [] if notice else (state.get("recommendations", []) or [])
     return {
         "session_id": session_id,
         "error": state.get("error"),
+        "notice": notice,
         "log": state.get("log", []),
         "recommendations": [r.model_dump(mode="json") for r in recs],
     }
@@ -55,6 +58,9 @@ def _persist_report(session_id: str, state: GraphState) -> None:
 
     query = state.get("query")
     if query is None:
+        return
+    # Don't persist a report when we withheld results due to a rate limit.
+    if state.get("notice"):
         return
     try:
         path = save_report(session_id, query, state.get("recommendations", []) or [])

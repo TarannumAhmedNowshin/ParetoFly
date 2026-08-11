@@ -1,0 +1,34 @@
+# Render Blueprint for the ParetoFly backend (free tier, Docker).
+# Deploy: push to GitHub, then New + > Blueprint and pick this repo.
+# Secrets (sync:false) are set in the Render dashboard, never committed.
+services:
+  - type: web
+    name: paretofly-api
+    runtime: docker
+    plan: free
+    region: oregon
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      # --- Non-secret config (safe to keep in the blueprint) ---
+      - key: PLAYWRIGHT_FALLBACK_ENABLED
+        value: "false"
+      - key: GEMINI_FULL_MODEL
+        value: gemini-flash-lite-latest
+      - key: GEMINI_MINI_MODEL
+        value: gemini-flash-lite-latest
+      - key: GEMINI_REQUESTS_PER_MINUTE
+        value: "10"
+      - key: GEMINI_MAX_RETRIES
+        value: "5"
+      # --- Secrets & environment-specific (set these in the dashboard) ---
+      # CORS_ALLOW_ORIGINS = your Vercel URL, e.g. https://paretofly.vercel.app
+      - key: CORS_ALLOW_ORIGINS
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: SERPER_API_KEY
+        sync: false
+      - key: SERPAPI_API_KEY
+        sync: false

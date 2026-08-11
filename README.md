@@ -49,13 +49,13 @@ intake → search → enrich → convert → score → rank → explain → pres
 
 | Node | Responsibility | External dependency | Fallback |
 |---|---|---|---|
-| `intake` | Parse free text into `ParsedSignals`; infer a persona to seed default weights | GPT-5-mini | Form-derived signals |
+| `intake` | Parse free text into `ParsedSignals`; infer a persona to seed default weights | Gemini Flash-Lite | Form-derived signals |
 | `search` | Fetch and normalize offers | SerpAPI (cached) | `SerpApiError` → clean error state |
-| `enrich` | Fold baggage fees, student/portal discounts, and allowances into `true_price` | Web-knowledge chain + GPT-5-mini | Default fee constant; discounts skipped |
+| `enrich` | Fold baggage fees, student/portal discounts, and allowances into `true_price` | Web-knowledge chain + Gemini Flash-Lite | Default fee constant; discounts skipped |
 | `convert` | Convert fares to the requested currency when search fell back to another | Keyless FX API (cached) | Keep original currency |
 | `score` | Nine-feature min-max weighted scoring | none (pure) | — |
 | `rank` | Diversity-aware top-3 selection | none (pure) | — |
-| `explain` | Rule-based pros/cons, then an LLM rewrite | GPT-5 | Rule-based baseline |
+| `explain` | Rule-based pros/cons, then an LLM rewrite | Gemini Flash | Rule-based baseline |
 | `present` | Terminal node (CLI print / SSE close) | none | — |
 
 Every node that touches the network or an LLM has a deterministic fallback, so a
@@ -89,8 +89,8 @@ confidence score.
 
 ## Tech stack
 
-- Backend: Python 3.14, Pydantic v2, LangGraph, LangChain (Azure GPT-5 /
-  GPT-5-mini), FastAPI with `sse-starlette`, httpx, Playwright, pytest.
+- Backend: Python 3.14, Pydantic v2, LangGraph, LangChain (Google Gemini
+  Flash / Flash-Lite), FastAPI with `sse-starlette`, httpx, Playwright, pytest.
 - Frontend: Next.js 16 (App Router), React 19, TypeScript, Tailwind CSS 4,
   `@microsoft/fetch-event-source`.
 - Data sources: SerpAPI Google Flights (offers); Serper, DuckDuckGo, and
@@ -117,7 +117,7 @@ app/
   scoring/model.py     scoring and diversity ranking (pure)
   enrichment.py        true-cost enrichment
   reporting.py         downloadable per-search Markdown reports
-  llm/                 Azure clients, intake parsing, explanation
+  llm/                 Gemini clients, intake parsing, explanation
   graph/               state.py, nodes.py, build.py
   api/main.py          /health, /search, /search/stream, /report/{id}
   cli.py               local harness
@@ -193,9 +193,11 @@ loader is alias-tolerant and case-insensitive.
 |---|---|---|
 | `SERPAPI_API_KEY` (alias `SerpApi_key`) | — | Flight offers |
 | `SERPER_API_KEY` | — | Web enrichment (primary provider) |
-| `AZURE_GPT5_ENDPOINT` / `_API_KEY` / `_DEPLOYMENT` | `gpt-5` | Narrative and explanation |
-| `AZURE_GPT5_MINI_ENDPOINT` / `_API_KEY` / `_DEPLOYMENT` | `gpt-5-mini` | Intake and extraction |
-| `AZURE_GPT5*_API_VERSION` | `2024-12-01-preview` | Azure API version |
+| `GEMINI_API_KEY` (alias `GOOGLE_API_KEY`) | — | Gemini key (free from AI Studio) |
+| `GEMINI_FULL_MODEL` | `gemini-flash-latest` | Narrative and explanation |
+| `GEMINI_MINI_MODEL` | `gemini-flash-lite-latest` | Intake and extraction |
+| `GEMINI_REQUESTS_PER_MINUTE` | `10` | Shared client-side RPM cap (free-tier guard) |
+| `GEMINI_MAX_RETRIES` | `5` | Backoff retries on 429/5xx before fallback |
 | `CORS_ALLOW_ORIGINS` | `http://localhost:3000` | Comma-separated allowed origins |
 | `SERPAPI_CACHE_ENABLED` | `true` | Toggle the offer cache |
 | `SERPAPI_CACHE_DIR` / `_TTL_SECONDS` | `.cache/serpapi` / `21600` | Offer cache location and freshness |
@@ -204,14 +206,36 @@ loader is alias-tolerant and case-insensitive.
 | `ENRICH_MAX_WORKERS` | `6` | Concurrency for per-airline enrichment |
 | `REPORTS_DIR` | `reports` | Directory for generated reports |
 
+## Deploy (free)
+
+Two deployables: the Next.js **frontend** on Vercel and the FastAPI **backend**
+on Render — both free, no credit card. Config files live in the repo:
+[Dockerfile](Dockerfile), [render.yaml](render.yaml),
+[requirements-prod.txt](requirements-prod.txt) (Playwright excluded so the image
+fits the free 512MB tier — Serper + DuckDuckGo cover web enrichment).
+
+1. **Backend → Render.** Push to GitHub, then Render → **New + → Blueprint** and
+   pick the repo (it reads `render.yaml`). In the dashboard set the secret env
+   vars: `GEMINI_API_KEY`, `SERPER_API_KEY`, `SERPAPI_API_KEY`. Deploy → note the
+   URL, e.g. `https://paretofly-api.onrender.com`. Check `/health` returns `ok`.
+2. **Frontend → Vercel.** Import the repo, set **Root Directory** to `frontend`,
+   and add env var `NEXT_PUBLIC_API_BASE_URL` = your Render URL. Deploy → note the
+   URL, e.g. `https://paretofly.vercel.app`.
+3. **Wire CORS.** Back in Render, set `CORS_ALLOW_ORIGINS` to the exact Vercel URL
+   and redeploy. Done.
+
+Notes: the Render free tier **sleeps after ~15 min idle**, so the first request
+cold-starts (~30–60s) — the streamed progress UI masks this. Reports and caches
+live on ephemeral disk and reset on restart, which is fine for a free demo.
+
 ## Notes
 
 - SerpAPI Google Flights is the offer source because Amadeus self-service was
   decommissioned in July 2025. The free tier allows 250 searches per month; the
   caches exist to protect that limit, since every uncached search consumes one.
-- GPT-5-mini handles structured extraction; GPT-5 writes narrative only. GPT-5
-  reasoning latency of tens of seconds is expected, which is why the API streams
-  progress.
+- Gemini Flash-Lite handles structured extraction; Gemini Flash writes narrative
+  only. A shared client-side rate limiter and backoff retries keep the app inside
+  the free-tier requests-per-minute cap, which is why the API streams progress.
 - Some route, date, and filter combinations legitimately return no offers; the
   pipeline surfaces this as a clean error rather than a stack trace.
 - On Windows PowerShell, `>` redirects write UTF-16; read them back with

@@ -19,4 +19,5 @@ class GraphState(TypedDict, total=False):
     recommendations: list[Recommendation]
     log: list[str]
     error: Optional[str]
+    notice: Optional[str]
     session_id: Optional[str]

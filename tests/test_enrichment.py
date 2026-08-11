@@ -127,9 +127,10 @@ def test_student_baggage_bonus_recorded(monkeypatch):
     enrichment.enrich_true_prices(offers, query)
 
     for offer in offers:
+        # Student bonus is CHECKED baggage and stays separate from cabin allowance.
         assert offer.student_baggage_bonus_kg == 10.0
         assert offer.baggage_allowance_kg == 7.0
-        assert offer.total_cabin_baggage_kg == 17.0
+        assert offer.cabin_baggage_kg == 7.0
 
 
 def test_site_discount_recorded_with_source(monkeypatch):

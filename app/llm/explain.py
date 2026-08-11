@@ -1,10 +1,10 @@
-"""LLM explain: generate grounded pros/cons + narrative for the top-3 (GPT-5)."""
+"""LLM explain: generate grounded pros/cons + narrative for the top-3 (Gemini)."""
 
 from __future__ import annotations
 
 from pydantic import BaseModel, Field
 
-from app.llm.azure_client import get_full_llm
+from app.llm.gemini_client import get_full_llm, is_rate_limit_error, note_rate_limit
 from app.logging_config import get_logger
 from app.models.schemas import Recommendation, TripQuery
 
@@ -29,6 +29,9 @@ _SYSTEM = (
     "as short phrases. Then a one-sentence narrative. Reference the traveler's "
     "specific needs (kids, bags, arrival time, red-eyes, student status) and call "
     "out any student/booking-site discounts or cabin baggage allowance when given. "
+    "Cabin baggage (cabin_baggage_kg) is the carry-on allowance; a student's "
+    "extra baggage (student_extra_checked_baggage_kg) is CHECKED/hold baggage \u2014 "
+    "describe them as such and never call the student bonus cabin baggage. "
     "Do not invent prices, times, or amenities that are not given."
 )
 
@@ -61,8 +64,7 @@ def _offer_facts(rec: Recommendation) -> dict:
         "site_discount": o.site_discount_amount,
         "site_discount_source": o.site_discount_source,
         "cabin_baggage_kg": o.baggage_allowance_kg,
-        "student_baggage_bonus_kg": o.student_baggage_bonus_kg,
-        "total_cabin_baggage_kg": o.total_cabin_baggage_kg,
+        "student_extra_checked_baggage_kg": o.student_baggage_bonus_kg,
     }
 
 
@@ -107,6 +109,8 @@ def write_explanations(recs: list[Recommendation], query: TripQuery) -> bool:
         llm = get_full_llm().with_structured_output(_ExplanationSet)
         result: _ExplanationSet = llm.invoke([("system", _SYSTEM), ("human", prompt)])
     except Exception as exc:  # pragma: no cover - network/parse failure -> caller fallback
+        if is_rate_limit_error(exc):
+            note_rate_limit()
         log.warning("explain: LLM call failed (%s); keeping rule-based reasons", exc)
         return False
 

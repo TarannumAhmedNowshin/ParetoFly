@@ -162,6 +162,13 @@ export default function Home() {
           </div>
         )}
 
+        {phase === "done" && result?.notice && (
+          <div className="animate-fade-up rounded-2xl border border-amber-200 bg-amber-50/70 p-6 text-sm text-amber-900">
+            <p className="font-semibold">Sorry — AI insights are paused right now</p>
+            <p className="mt-1 leading-relaxed text-amber-800">{result.notice}</p>
+          </div>
+        )}
+
         {streaming && (
           <section className="flex w-full max-w-3xl flex-col gap-5">
             <div className="flex flex-col gap-1 border-b border-[#e7e4dd] pb-4">
@@ -198,7 +205,7 @@ export default function Home() {
           </section>
         )}
 
-        {phase === "done" && recommendations.length === 0 && (
+        {phase === "done" && !result?.notice && recommendations.length === 0 && (
           <div className="animate-fade-up rounded-2xl border border-[#e7e4dd] bg-white p-6 text-sm text-[#6b675f] shadow-[0_1px_2px_rgba(26,25,23,0.04)]">
             No flights matched this search. Try widening your dates, stops, or budget.
           </div>

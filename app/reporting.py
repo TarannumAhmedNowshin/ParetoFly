@@ -123,32 +123,22 @@ def _breakdown_table(offer: FlightOffer) -> list[str]:
 
 
 def _baggage_lines(offer: FlightOffer) -> list[str]:
-    """Report base cabin allowance, any student bonus, and the resulting total."""
+    """Report cabin allowance and any student checked-baggage bonus separately."""
 
     lines: list[str] = []
     base_kg = offer.baggage_allowance_kg
     bonus_kg = offer.student_baggage_bonus_kg
-    total_kg = offer.total_cabin_baggage_kg
-    if total_kg is not None:
-        if bonus_kg:
-            lines.append(
-                f"- **Cabin baggage:** {(base_kg or 0):.0f}kg base + {bonus_kg:.0f}kg "
-                f"student bonus = **{total_kg:.0f}kg total**"
-            )
-        else:
-            lines.append(f"- **Cabin baggage:** {total_kg:.0f}kg")
+    if base_kg is not None:
+        lines.append(f"- **Cabin baggage:** {base_kg:.0f}kg")
+    if bonus_kg:
+        lines.append(f"- **Student checked-baggage bonus:** +{bonus_kg:.0f}kg")
 
     base_pc = offer.baggage_allowance_pieces
     bonus_pc = offer.student_baggage_bonus_pieces
-    total_pc = offer.total_cabin_baggage_pieces
-    if total_pc is not None:
-        if bonus_pc:
-            lines.append(
-                f"- **Cabin pieces:** {(base_pc or 0)} base + {bonus_pc} student bonus = "
-                f"**{total_pc} total**"
-            )
-        else:
-            lines.append(f"- **Cabin pieces:** {total_pc}")
+    if base_pc is not None:
+        lines.append(f"- **Cabin pieces:** {base_pc}")
+    if bonus_pc:
+        lines.append(f"- **Student checked-baggage bonus:** +{bonus_pc} piece(s)")
     return lines
 
 
