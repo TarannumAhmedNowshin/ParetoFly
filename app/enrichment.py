@@ -417,8 +417,13 @@ def enrich_true_prices(offers: list[FlightOffer], query: TripQuery) -> int:
                 offer.student_discount_source = facts.student_discount_source_domain
                 offer.student_discount_source_url = facts.student_discount_source_url
                 breakdown["student_discount"] = -student_total
-            offer.student_baggage_bonus_kg = facts.student_extra_baggage_kg
-            offer.student_baggage_bonus_pieces = facts.student_extra_baggage_pieces
+            # A student baggage bonus is only credible when a real student program
+            # was actually verified (a gated student fare discount). Otherwise the
+            # extracted "extra" is usually the standard economy allowance misread as
+            # a perk (e.g. Biman's 20kg base), so we drop it.
+            if facts.student_discount_amount or facts.student_discount_percent:
+                offer.student_baggage_bonus_kg = facts.student_extra_baggage_kg
+                offer.student_baggage_bonus_pieces = facts.student_extra_baggage_pieces
 
         site_total = 0.0
         if facts.site_discount_amount:
