@@ -201,8 +201,10 @@ loader is alias-tolerant and case-insensitive.
 | `GEMINI_REQUESTS_PER_MINUTE` | `10` | Shared client-side RPM cap (free-tier guard) |
 | `GEMINI_MAX_RETRIES` | `5` | Backoff retries on 429/5xx before fallback |
 | `CORS_ALLOW_ORIGINS` | `http://localhost:3000` | Comma-separated allowed origins |
+| `ENABLE_DOCS` | `false` | Expose `/docs` · `/redoc` · `/openapi.json` (keep off in prod) |
 | `SERPAPI_CACHE_ENABLED` | `true` | Toggle the offer cache |
 | `SERPAPI_CACHE_DIR` / `_TTL_SECONDS` | `.cache/serpapi` / `21600` | Offer cache location and freshness |
+| `SERPAPI_DAILY_BUDGET` | `0` | Max live SerpAPI searches/day (`0` = unlimited; set in prod) |
 | `KB_CACHE_DIR` / `_TTL_SECONDS` | `.cache/kb` / `1209600` | Enrichment knowledge cache |
 | `FX_CACHE_DIR` / `_TTL_SECONDS` | `.cache/fx` | FX rate cache |
 | `ENRICH_MAX_WORKERS` | `6` | Concurrency for per-airline enrichment |
